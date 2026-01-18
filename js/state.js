@@ -35,6 +35,9 @@ const initialState = {
         width: 5,   // cm
     },
 
+    // Wall gap (expansion gap) - affects edge plank calculations
+    wallGap: 0.5, // cm (5mm default)
+
     // UI state
     ui: {
         mode: 'drawing', // 'idle', 'drawing', 'editing', 'dragging' - start in drawing mode
@@ -104,7 +107,8 @@ function saveState(state) {
             room: state.room,
             plank: state.plank,
             floor: state.floor,
-            minimums: state.minimums
+            minimums: state.minimums,
+            wallGap: state.wallGap
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     } catch (e) {

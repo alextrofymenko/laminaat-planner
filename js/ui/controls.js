@@ -117,6 +117,15 @@ export function initControls(canvas) {
         });
     }
 
+    // Wall gap
+    const wallGapInput = document.getElementById('wall-gap');
+    if (wallGapInput) {
+        wallGapInput.value = currentState.wallGap !== undefined ? currentState.wallGap : 0.5;
+        wallGapInput.addEventListener('change', (e) => {
+            state.set('wallGap', parseFloat(e.target.value) || 0);
+        });
+    }
+
     // View controls
     const fitViewBtn = document.getElementById('btn-fit-view');
     const resetPositionBtn = document.getElementById('btn-reset-position');
