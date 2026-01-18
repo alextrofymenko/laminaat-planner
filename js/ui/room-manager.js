@@ -45,6 +45,7 @@ export function initRoomManager(canvas) {
     const btnNewRoom = document.getElementById('btn-new-room-action');
     const btnDeleteRoom = document.getElementById('btn-delete-room');
     const btnShareRoom = document.getElementById('btn-share-room');
+    const btnLockRoom = document.getElementById('btn-lock-room');
 
     // Save dialog
     const saveDialog = document.getElementById('save-dialog');
@@ -284,6 +285,45 @@ export function initRoomManager(canvas) {
             alert('Share URL updated in address bar');
         });
     });
+
+    // Lock button
+    function updateLockState() {
+        const currentState = state.get();
+        const isLocked = currentState.ui.isLocked;
+
+        // Update button appearance
+        if (isLocked) {
+            btnLockRoom.textContent = 'Unlock';
+            btnLockRoom.classList.add('btn-locked');
+        } else {
+            btnLockRoom.textContent = 'Lock';
+            btnLockRoom.classList.remove('btn-locked');
+        }
+
+        // Disable/enable sidebar inputs
+        const sidebar = document.querySelector('.sidebar');
+        const inputs = sidebar.querySelectorAll('input, select');
+        const buttons = sidebar.querySelectorAll('.panel button, .room-controls button');
+
+        inputs.forEach(input => {
+            input.disabled = isLocked;
+        });
+
+        buttons.forEach(btn => {
+            btn.disabled = isLocked;
+        });
+    }
+
+    btnLockRoom.addEventListener('click', () => {
+        const currentState = state.get();
+        state.set('ui.isLocked', !currentState.ui.isLocked);
+    });
+
+    // Subscribe to state changes for lock updates
+    state.subscribe(() => updateLockState());
+
+    // Initial lock state
+    updateLockState();
 
     // Save dialog handlers
     function confirmSave() {

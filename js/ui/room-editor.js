@@ -32,6 +32,9 @@ export function initRoomEditor(canvas, getTransform) {
     function handleMouseDown(e) {
         const currentState = state.get();
 
+        // Don't allow editing when locked
+        if (currentState.ui.isLocked) return;
+
         // Shift+mousedown to start vertex edit/drag
         if (e.shiftKey && currentState.room.isComplete && currentState.ui.mode === 'idle') {
             // ALWAYS stop propagation when Shift is held to prevent panning
@@ -146,12 +149,15 @@ export function initRoomEditor(canvas, getTransform) {
         const currentState = state.get();
 
         // Shift+click on wall to add vertex (vertex clicks handled by mousedown/up)
+        // Don't allow when locked
         if (e.shiftKey && currentState.room.isComplete && currentState.ui.mode === 'idle') {
-            handleWallClick(e, currentState, getTransform);
+            if (!currentState.ui.isLocked) {
+                handleWallClick(e, currentState, getTransform);
+            }
             return;
         }
 
-        // Regular click on wall to select it and focus input
+        // Regular click on wall to select it and focus input (allowed when locked)
         if (!e.shiftKey && currentState.room.isComplete && currentState.ui.mode === 'idle') {
             const wallIndex = getWallAtPosition(e, currentState, getTransform);
             if (wallIndex !== null) {
@@ -170,7 +176,8 @@ export function initRoomEditor(canvas, getTransform) {
             }
         }
 
-        if (currentState.ui.mode !== 'drawing') return;
+        // Don't allow drawing when locked
+        if (currentState.ui.mode !== 'drawing' || currentState.ui.isLocked) return;
 
         const transform = getTransform();
         const rect = canvas.getBoundingClientRect();

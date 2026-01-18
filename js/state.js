@@ -49,6 +49,7 @@ const initialState = {
         hoveredWall: null,
         hoveredPlank: null,
         isDraggingVertex: false, // Vertex drag in progress
+        isLocked: false, // Lock layout to prevent accidental changes
     },
 
     // View/canvas state

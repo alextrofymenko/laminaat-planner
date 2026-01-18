@@ -220,6 +220,12 @@ body {
     border-color: var(--accent);
 }
 
+.form-group input:disabled,
+.form-group select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .form-group input[type="range"] {
     width: calc(100% - 50px);
     vertical-align: middle;
@@ -270,6 +276,20 @@ body {
 
 .btn-danger:hover {
     background: #ff5252;
+}
+
+.btn-locked {
+    background: var(--accent);
+    color: white;
+}
+
+.btn-locked:hover {
+    background: #3a8ee6;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .hint {

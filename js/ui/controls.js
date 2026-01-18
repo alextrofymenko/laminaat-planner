@@ -268,10 +268,11 @@ export function initFloorDrag(canvas, getTransform) {
     canvas.addEventListener('mousedown', (e) => {
         const currentState = state.get();
 
-        // Only drag if room is complete and not in drawing mode
+        // Only drag if room is complete, not in drawing mode, and not locked
         // Use right-click or Ctrl+left-click for floor dragging
         if (currentState.room.isComplete &&
             currentState.ui.mode === 'idle' &&
+            !currentState.ui.isLocked &&
             (e.button === 2 || (e.button === 0 && e.ctrlKey))) {
 
             isDragging = true;
