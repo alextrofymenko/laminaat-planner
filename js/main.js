@@ -265,6 +265,11 @@ function init() {
             currentState.ui.hoveredWall
         );
 
+        // Draw full plank markers (after room so they're on top)
+        if (planks.length > 0) {
+            renderer.drawFullPlankMarkers(planks, transform, currentState.ui.selectedPlank);
+        }
+
         // Draw dimensions for complete room
         if (currentState.room.isComplete) {
             renderer.drawDimensions(currentState.room.vertices, transform);

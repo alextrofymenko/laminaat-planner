@@ -252,6 +252,38 @@ export function createRenderer(canvas) {
         ctx.restore();
     }
 
+    function drawFullPlankMarkers(planks, transform, selectedPlankId = null) {
+        // Draw green checkmarks for full planks
+        for (const plank of planks) {
+            if (plank.isFull && plank.id !== selectedPlankId) {
+                const center = transform.worldToScreen(plank.cx, plank.cy);
+                const radius = 10;
+
+                // White circle background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.beginPath();
+                ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Green checkmark
+                const size = 7;
+                ctx.strokeStyle = '#22863a';
+                ctx.lineWidth = 2.5;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                ctx.beginPath();
+                ctx.moveTo(center.x - size * 0.5, center.y);
+                ctx.lineTo(center.x - size * 0.1, center.y + size * 0.4);
+                ctx.lineTo(center.x + size * 0.6, center.y - size * 0.4);
+                ctx.stroke();
+            }
+        }
+
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+    }
+
     function drawPlankDimensions(planks, transform, showNumbers = true, showDimensions = false) {
         if (!showNumbers && !showDimensions) return;
 
@@ -314,6 +346,7 @@ export function createRenderer(canvas) {
         drawDimensions,
         drawPlanks,
         drawPlankDimensions,
+        drawFullPlankMarkers,
         drawDrawingGuide,
         getContext: () => ctx,
         createTransform: (view) => createTransform(view, canvas)
