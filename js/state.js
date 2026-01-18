@@ -24,7 +24,7 @@ const initialState = {
     // Floor layout configuration
     floor: {
         rotation: 0,           // degrees (-90 to 90)
-        offsetPattern: 0.5,    // fraction (0.5 = 1/2, 0.333 = 1/3, 0.25 = 1/4)
+        offsetPattern: 0.333,  // fraction (0.5 = 1/2, 0.333 = 1/3, 0.25 = 1/4)
         offsetX: 0,            // cm - floor position offset
         offsetY: 0,            // cm - floor position offset
         rowOffsets: {},        // per-row custom offsets: { rowIndex: fraction }

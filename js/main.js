@@ -11,10 +11,10 @@
 import { state } from './state.js';
 import { createRenderer } from './canvas/renderer.js';
 import { generatePlankGrid, calculateStats } from './geometry/plank-grid.js';
-import { polygonArea, polygonBounds } from './geometry/polygon.js';
+import { polygonArea, polygonBounds, pointInPolygon } from './geometry/polygon.js';
 import { clipPolygon } from './geometry/clipping.js';
 import { fitBoundsToView } from './geometry/transforms.js';
-import { initRoomEditor, updateWallsList } from './ui/room-editor.js';
+import { initRoomEditor, updateWallsList, getWallLabelAtPosition } from './ui/room-editor.js';
 import { initControls, initPanZoom, initFloorDrag } from './ui/controls.js';
 import { updateStatsDisplay, updateOverlay } from './ui/stats.js';
 import { initRoomManager } from './ui/room-manager.js';
@@ -44,7 +44,7 @@ function init() {
     initFloorDrag(canvas, getTransform);
     initRoomManager(canvas);
 
-    // Plank click handler - runs before room-editor click handler
+    // Plank click handler - uses capture phase to run before room-editor click handler
     canvas.addEventListener('click', (e) => {
         const currentState = state.get();
         if (!currentState.room.isComplete || currentState.ui.mode !== 'idle') return;
@@ -58,32 +58,34 @@ function init() {
         const transform = getTransform();
         const worldPos = transform.screenToWorld(screenX, screenY);
 
-        // Check if click is on a plank (check in reverse order for top-most)
-        const planks = generatePlanks(currentState);
-        for (let i = planks.length - 1; i >= 0; i--) {
-            const plank = planks[i];
-            if (isPointInPlank(worldPos, plank)) {
-                // Stop propagation to prevent wall click handler from also firing
-                e.stopImmediatePropagation();
-                // Use row,col as stable identifier (survives grid regeneration)
-                const plankKey = `${plank.row},${plank.col}`;
-                // Toggle selection - clear wall selection when selecting plank
-                if (currentState.ui.selectedPlank === plankKey) {
-                    state.set('ui.selectedPlank', null);
-                } else {
-                    state.batch({
-                        'ui.selectedPlank': plankKey,
-                        'ui.selectedWall': null
-                    });
-                    // Scroll preview panel into view
-                    setTimeout(() => {
-                        const previewPanel = document.getElementById('plank-preview-panel');
-                        if (previewPanel) {
-                            previewPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                        }
-                    }, 50);
+        // Check if click is on a plank (only if inside room, check in reverse order for top-most)
+        if (pointInPolygon(worldPos, currentState.room.vertices)) {
+            const planks = generatePlanks(currentState);
+            for (let i = planks.length - 1; i >= 0; i--) {
+                const plank = planks[i];
+                if (isPointInPlank(worldPos, plank)) {
+                    // Stop propagation to prevent wall click handler from also firing
+                    e.stopImmediatePropagation();
+                    // Use row,col as stable identifier (survives grid regeneration)
+                    const plankKey = `${plank.row},${plank.col}`;
+                    // Toggle selection - clear wall selection when selecting plank
+                    if (currentState.ui.selectedPlank === plankKey) {
+                        state.set('ui.selectedPlank', null);
+                    } else {
+                        state.batch({
+                            'ui.selectedPlank': plankKey,
+                            'ui.selectedWall': null
+                        });
+                        // Scroll preview panel into view
+                        setTimeout(() => {
+                            const previewPanel = document.getElementById('plank-preview-panel');
+                            if (previewPanel) {
+                                previewPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }
+                        }, 50);
+                    }
+                    return;
                 }
-                return;
             }
         }
 
@@ -91,29 +93,32 @@ function init() {
         if (currentState.ui.selectedPlank !== null) {
             state.set('ui.selectedPlank', null);
         }
-    });
+    }, true); // Use capture phase
 
-    // Plank hover tracking
+    // Plank and wall label hover tracking
     canvas.addEventListener('mousemove', (e) => {
         const currentState = state.get();
         // Skip hover during dragging
         if (canvas.classList.contains('panning') || canvas.classList.contains('dragging')) {
-            if (currentState.ui.hoveredPlank !== null) {
-                state.set('ui.hoveredPlank', null);
-            }
+            const updates = {};
+            if (currentState.ui.hoveredPlank !== null) updates['ui.hoveredPlank'] = null;
+            if (currentState.ui.hoveredWall !== null) updates['ui.hoveredWall'] = null;
+            if (Object.keys(updates).length > 0) state.batch(updates);
             return;
         }
         if (!currentState.room.isComplete || currentState.ui.mode !== 'idle') {
-            if (currentState.ui.hoveredPlank !== null) {
-                state.set('ui.hoveredPlank', null);
-            }
+            const updates = {};
+            if (currentState.ui.hoveredPlank !== null) updates['ui.hoveredPlank'] = null;
+            if (currentState.ui.hoveredWall !== null) updates['ui.hoveredWall'] = null;
+            if (Object.keys(updates).length > 0) state.batch(updates);
             return;
         }
         if (e.shiftKey) {
-            // Shift mode is for vertex editing, not plank hover
-            if (currentState.ui.hoveredPlank !== null) {
-                state.set('ui.hoveredPlank', null);
-            }
+            // Shift mode is for vertex editing
+            const updates = {};
+            if (currentState.ui.hoveredPlank !== null) updates['ui.hoveredPlank'] = null;
+            if (currentState.ui.hoveredWall !== null) updates['ui.hoveredWall'] = null;
+            if (Object.keys(updates).length > 0) state.batch(updates);
             return;
         }
 
@@ -123,35 +128,54 @@ function init() {
         const transform = getTransform();
         const worldPos = transform.screenToWorld(screenX, screenY);
 
-        // Check if hovering over a plank
-        const planks = generatePlanks(currentState);
-        for (let i = planks.length - 1; i >= 0; i--) {
-            const plank = planks[i];
-            if (isPointInPlank(worldPos, plank)) {
-                // Use row,col as stable identifier
-                const plankKey = `${plank.row},${plank.col}`;
-                // Update state - plank hover takes priority over wall hover
-                const updates = {};
-                if (currentState.ui.hoveredPlank !== plankKey) {
-                    updates['ui.hoveredPlank'] = plankKey;
+        // Check wall labels FIRST (they're visually on top)
+        const wallIndex = getWallLabelAtPosition(screenX, screenY, currentState.room.vertices, transform);
+        if (wallIndex !== null) {
+            const updates = {};
+            if (currentState.ui.hoveredWall !== wallIndex) {
+                updates['ui.hoveredWall'] = wallIndex;
+            }
+            if (currentState.ui.hoveredPlank !== null) {
+                updates['ui.hoveredPlank'] = null;
+            }
+            if (Object.keys(updates).length > 0) {
+                state.batch(updates);
+            }
+            canvas.style.cursor = 'pointer';
+            return;
+        }
+
+        // Check if hovering over a plank (only if point is inside the room)
+        if (pointInPolygon(worldPos, currentState.room.vertices)) {
+            const planks = generatePlanks(currentState);
+            for (let i = planks.length - 1; i >= 0; i--) {
+                const plank = planks[i];
+                if (isPointInPlank(worldPos, plank)) {
+                    const plankKey = `${plank.row},${plank.col}`;
+                    const updates = {};
+                    if (currentState.ui.hoveredPlank !== plankKey) {
+                        updates['ui.hoveredPlank'] = plankKey;
+                    }
+                    if (currentState.ui.hoveredWall !== null) {
+                        updates['ui.hoveredWall'] = null;
+                    }
+                    if (Object.keys(updates).length > 0) {
+                        state.batch(updates);
+                    }
+                    canvas.style.cursor = 'pointer';
+                    return;
                 }
-                // Clear wall hover if set (plank takes priority)
-                if (currentState.ui.hoveredWall !== null) {
-                    updates['ui.hoveredWall'] = null;
-                }
-                if (Object.keys(updates).length > 0) {
-                    state.batch(updates);
-                }
-                // Set cursor to pointer for plank hover (takes priority over wall)
-                canvas.style.cursor = 'pointer';
-                return;
             }
         }
 
-        // Not hovering over any plank
-        if (currentState.ui.hoveredPlank !== null) {
-            state.set('ui.hoveredPlank', null);
+        // Not hovering over anything - clear both and reset cursor
+        const updates = {};
+        if (currentState.ui.hoveredPlank !== null) updates['ui.hoveredPlank'] = null;
+        if (currentState.ui.hoveredWall !== null) updates['ui.hoveredWall'] = null;
+        if (Object.keys(updates).length > 0) {
+            state.batch(updates);
         }
+        canvas.style.cursor = 'default';
     });
 
     // Clear hover states when mouse leaves canvas
@@ -278,7 +302,12 @@ function init() {
 
         // Draw dimensions for complete room
         if (currentState.room.isComplete) {
-            renderer.drawDimensions(currentState.room.vertices, transform);
+            renderer.drawDimensions(
+                currentState.room.vertices,
+                transform,
+                currentState.ui.selectedWall,
+                currentState.ui.hoveredWall
+            );
         }
 
         // Draw drawing guide if in drawing mode
@@ -310,6 +339,10 @@ function init() {
                 lastWallsKey = wallsKey;
                 updateWallsList(currentState.room.vertices, currentState.room.wallDimensions);
             }
+        } else if (lastWallsKey !== null) {
+            // Clear walls list when room is not complete (e.g., new room)
+            lastWallsKey = null;
+            updateWallsList([], []);
         }
 
         // Update overlay

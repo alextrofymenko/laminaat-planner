@@ -5,7 +5,7 @@
 
 import { createTransform } from '../geometry/transforms.js';
 import { polygonBounds, getWallLengths, getWallMidpoints, getWallAngles } from '../geometry/polygon.js';
-import { round } from '../utils.js';
+import { round, wallLabel } from '../utils.js';
 
 // Colors
 const COLORS = {
@@ -131,9 +131,9 @@ export function createRenderer(canvas) {
                 ctx.strokeStyle = '#ffcc00';
                 ctx.lineWidth = 4;
             } else if (isHovered) {
-                // Subtle hover - slightly brighter blue
-                ctx.strokeStyle = '#6bb3ff';
-                ctx.lineWidth = 3;
+                // Bright highlight when label is hovered
+                ctx.strokeStyle = '#4a9eff';
+                ctx.lineWidth = 4;
             } else {
                 ctx.strokeStyle = COLORS.room.stroke;
                 ctx.lineWidth = 2;
@@ -158,7 +158,7 @@ export function createRenderer(canvas) {
         }
     }
 
-    function drawDimensions(vertices, transform) {
+    function drawDimensions(vertices, transform, selectedWall = null, hoveredWall = null) {
         if (vertices.length < 2) return;
 
         const lengths = getWallLengths(vertices);
@@ -173,7 +173,10 @@ export function createRenderer(canvas) {
             const mid = transform.worldToScreen(midpoints[i].x, midpoints[i].y);
             const length = round(lengths[i], 1);
             const angle = angles[i];
-            const wallLabel = String.fromCharCode(65 + i); // A, B, C, ...
+            const label = wallLabel(i);
+
+            const isSelected = selectedWall === i;
+            const isHovered = hoveredWall === i && !isSelected;
 
             // Offset text perpendicular to wall
             const offsetDist = 20;
@@ -181,11 +184,17 @@ export function createRenderer(canvas) {
             const offsetY = -Math.cos(angle) * offsetDist;
 
             // Text with label and dimension
-            const text = `${wallLabel}: ${length} cm`;
+            const text = `${label}: ${length} cm`;
             const textWidth = ctx.measureText(text).width;
 
-            // Background for text
-            ctx.fillStyle = 'rgba(26, 26, 46, 0.8)';
+            // Background for text - highlight when selected/hovered
+            if (isSelected) {
+                ctx.fillStyle = 'rgba(255, 204, 0, 0.95)';
+            } else if (isHovered) {
+                ctx.fillStyle = 'rgba(74, 158, 255, 0.9)';
+            } else {
+                ctx.fillStyle = 'rgba(26, 26, 46, 0.8)';
+            }
             ctx.fillRect(
                 mid.x + offsetX - textWidth / 2 - 4,
                 mid.y + offsetY - 8,
@@ -193,7 +202,14 @@ export function createRenderer(canvas) {
                 16
             );
 
-            ctx.fillStyle = COLORS.dimension.text;
+            // Text color
+            if (isSelected) {
+                ctx.fillStyle = '#000';
+            } else if (isHovered) {
+                ctx.fillStyle = '#fff';
+            } else {
+                ctx.fillStyle = COLORS.dimension.text;
+            }
             ctx.fillText(text, mid.x + offsetX, mid.y + offsetY);
         }
     }

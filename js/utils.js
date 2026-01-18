@@ -79,3 +79,14 @@ export function throttle(fn, limit) {
 export function uid() {
     return Math.random().toString(36).substr(2, 9);
 }
+
+// Generate wall label: A, B, ... Z, AA, AB, ... AZ, BA, ...
+export function wallLabel(index) {
+    let label = '';
+    let i = index;
+    do {
+        label = String.fromCharCode(65 + (i % 26)) + label;
+        i = Math.floor(i / 26) - 1;
+    } while (i >= 0);
+    return label;
+}

@@ -3,11 +3,54 @@
  */
 
 import { state } from '../state.js';
-import { distance } from '../utils.js';
-import { getWallLengths, polygonCentroid } from '../geometry/polygon.js';
+import { distance, wallLabel, round } from '../utils.js';
+import { getWallLengths, getWallMidpoints, getWallAngles, polygonCentroid } from '../geometry/polygon.js';
 
 const SNAP_DISTANCE = 20; // pixels
 const DEFAULT_LONGEST_WALL = 500; // cm (5 meters)
+
+/**
+ * Check if screen position is over a wall label
+ * Exported for use by plank hover logic (labels take priority)
+ */
+export function getWallLabelAtPosition(screenX, screenY, vertices, transform) {
+    if (vertices.length < 2) return null;
+
+    const midpoints = getWallMidpoints(vertices);
+    const angles = getWallAngles(vertices);
+    const lengths = getWallLengths(vertices);
+
+    for (let i = 0; i < midpoints.length; i++) {
+        const mid = transform.worldToScreen(midpoints[i].x, midpoints[i].y);
+        const angle = angles[i];
+        const length = round(lengths[i], 1);
+        const label = wallLabel(i);
+
+        // Label offset perpendicular to wall (same as renderer)
+        const offsetDist = 20;
+        const offsetX = Math.sin(angle) * offsetDist;
+        const offsetY = -Math.cos(angle) * offsetDist;
+
+        // Label center position
+        const labelX = mid.x + offsetX;
+        const labelY = mid.y + offsetY;
+
+        // Generous hit area for easier clicking
+        const text = `${label}: ${length} cm`;
+        const textWidth = Math.max(text.length * 8, 80);
+        const textHeight = 24;
+
+        const halfWidth = (textWidth + 16) / 2;
+        const halfHeight = textHeight / 2;
+
+        if (screenX >= labelX - halfWidth && screenX <= labelX + halfWidth &&
+            screenY >= labelY - halfHeight && screenY <= labelY + halfHeight) {
+            return i;
+        }
+    }
+
+    return null;
+}
 
 /**
  * Initialize room editor
@@ -81,8 +124,8 @@ export function initRoomEditor(canvas, getTransform) {
                 // Always ignore the click event that follows to prevent adding a vertex
                 ignoreNextClick = true;
                 if (vertices.length > 3) {
-                    const wallLabel = String.fromCharCode(65 + vertexDrag.vertexIndex);
-                    if (confirm(`Delete vertex ${wallLabel}?`)) {
+                    const label = wallLabel(vertexDrag.vertexIndex);
+                    if (confirm(`Delete vertex ${label}?`)) {
                         const newVertices = vertices.filter((_, idx) => idx !== vertexDrag.vertexIndex);
                         state.batch({
                             'room.vertices': newVertices,
@@ -248,11 +291,8 @@ export function initRoomEditor(canvas, getTransform) {
     function handleMouseMove(e) {
         const currentState = state.get();
 
-        // Skip hover during dragging (panning or floor drag)
+        // Skip during dragging (panning or floor drag)
         if (canvas.classList.contains('panning') || canvas.classList.contains('dragging')) {
-            if (currentState.ui.hoveredWall !== null) {
-                state.set('ui.hoveredWall', null);
-            }
             return;
         }
 
@@ -263,31 +303,11 @@ export function initRoomEditor(canvas, getTransform) {
         const screenY = e.clientY - rect.top;
         const snapDist = SNAP_DISTANCE;
 
-        // Handle cursor and hover state for idle mode (walls are clickable)
-        if (!e.shiftKey && currentState.room.isComplete && currentState.ui.mode === 'idle') {
-            // Only show wall hover if not hovering over a plank (planks take priority)
-            if (currentState.ui.hoveredPlank === null) {
-                const wallIndex = getWallAtPosition(e, currentState, getTransform);
-                if (wallIndex !== null) {
-                    if (currentState.ui.hoveredWall !== wallIndex) {
-                        state.set('ui.hoveredWall', wallIndex);
-                    }
-                    canvas.style.cursor = 'pointer';
-                    return;
-                }
-            }
-            // Clear wall hover if not over a wall (or if hovering a plank)
-            if (currentState.ui.hoveredWall !== null) {
-                state.set('ui.hoveredWall', null);
-            }
-        }
+        // Idle mode hover (labels/planks) is handled entirely by main.js
+        // This handler only manages Shift+edit mode and drawing mode
 
         // Handle cursor for Shift+edit mode
         if (e.shiftKey && currentState.room.isComplete && currentState.ui.mode === 'idle') {
-            // Clear wall hover in shift mode
-            if (currentState.ui.hoveredWall !== null) {
-                state.set('ui.hoveredWall', null);
-            }
             const vertices = currentState.room.vertices;
             const n = vertices.length;
 
@@ -333,13 +353,16 @@ export function initRoomEditor(canvas, getTransform) {
             return;
         }
 
+        // For idle mode without shift, main.js handles hover - just return
+        if (currentState.ui.mode === 'idle') {
+            mouseWorldPos = null;
+            return;
+        }
+
+        // For other non-drawing modes, reset cursor
         if (currentState.ui.mode !== 'drawing') {
             mouseWorldPos = null;
             canvas.style.cursor = 'default';
-            // Clear wall hover when not in idle mode
-            if (currentState.ui.hoveredWall !== null) {
-                state.set('ui.hoveredWall', null);
-            }
             return;
         }
 
@@ -394,39 +417,7 @@ export function initRoomEditor(canvas, getTransform) {
         const rect = canvas.getBoundingClientRect();
         const screenX = e.clientX - rect.left;
         const screenY = e.clientY - rect.top;
-        const worldPos = transform.screenToWorld(screenX, screenY);
-
-        const vertices = currentState.room.vertices;
-        const n = vertices.length;
-
-        // Check each wall
-        for (let i = 0; i < n; i++) {
-            const j = (i + 1) % n;
-            const v1 = vertices[i];
-            const v2 = vertices[j];
-
-            const wallDx = v2.x - v1.x;
-            const wallDy = v2.y - v1.y;
-            const wallLen = Math.sqrt(wallDx * wallDx + wallDy * wallDy);
-
-            if (wallLen === 0) continue;
-
-            // Project click onto wall line
-            const t = ((worldPos.x - v1.x) * wallDx + (worldPos.y - v1.y) * wallDy) / (wallLen * wallLen);
-            if (t < 0 || t > 1) continue;
-
-            // Distance from click to wall
-            const closestX = v1.x + t * wallDx;
-            const closestY = v1.y + t * wallDy;
-            const closestScreen = transform.worldToScreen(closestX, closestY);
-            const distToWall = Math.hypot(screenX - closestScreen.x, screenY - closestScreen.y);
-
-            if (distToWall < SNAP_DISTANCE) {
-                return i;
-            }
-        }
-
-        return null;
+        return getWallLabelAtPosition(screenX, screenY, currentState.room.vertices, transform);
     }
 
     function handleWallClick(e, currentState, getTransform) {
@@ -518,18 +509,6 @@ export function initRoomEditor(canvas, getTransform) {
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('keydown', handleKeyDown);
 
-    // Button handlers
-    const newRoomBtn = document.getElementById('btn-new-room');
-    const clearRoomBtn = document.getElementById('btn-clear-room');
-
-    if (newRoomBtn) {
-        newRoomBtn.addEventListener('click', startDrawing);
-    }
-
-    if (clearRoomBtn) {
-        clearRoomBtn.addEventListener('click', clearRoom);
-    }
-
     return {
         getMouseWorldPos: () => mouseWorldPos,
         startDrawing,
@@ -558,7 +537,7 @@ export function updateWallsList(vertices, wallDimensions) {
         const v2 = vertices[j];
         const actualLength = Math.round(distance(v1, v2) * 10) / 10; // Round to 1 decimal
         const targetLength = wallDimensions[i];
-        const wallLabel = String.fromCharCode(65 + i); // A, B, C, ...
+        const label = wallLabel(i);
 
         // Check if there's a mismatch between target and actual
         const hasMismatch = targetLength !== undefined && targetLength !== null &&
@@ -566,7 +545,7 @@ export function updateWallsList(vertices, wallDimensions) {
 
         html += `
             <div class="wall-item ${hasMismatch ? 'has-mismatch' : ''}">
-                <span>Wall ${wallLabel}</span>
+                <span>Wall ${label}</span>
                 <div class="wall-dimension-group">
                     <input type="number"
                            value="${actualLength}"

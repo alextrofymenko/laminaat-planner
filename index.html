@@ -24,22 +24,29 @@
 
             <!-- Room Actions -->
             <div class="room-actions">
-                <button id="btn-save-room" class="btn btn-primary btn-sm">Save</button>
-                <button id="btn-new-room-action" class="btn btn-secondary btn-sm">New</button>
-                <button id="btn-share-room" class="btn btn-secondary btn-sm">Share</button>
-                <button id="btn-lock-room" class="btn btn-secondary btn-sm">Lock</button>
-                <button id="btn-delete-room" class="btn btn-danger btn-sm" style="display: none;">Delete</button>
+                <button id="btn-save-room" class="btn-icon" title="Save room">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+                </button>
+                <button id="btn-new-room-action" class="btn-icon" title="New room">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                </button>
+                <button id="btn-share-room" class="btn-icon" title="Share room">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+                </button>
+                <button id="btn-lock-room" class="btn-icon" title="Lock layout">
+                    <svg viewBox="0 0 24 24" fill="currentColor" class="icon-unlocked"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor" class="icon-locked"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
+                </button>
+                <button id="btn-delete-room" class="btn-icon btn-icon-danger" title="Delete room" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                </button>
+                <button id="btn-help" class="btn-icon" title="Help">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
+                </button>
             </div>
 
-            <section class="panel">
-                <h2>Room</h2>
-                <div class="room-controls">
-                    <button id="btn-new-room" class="btn btn-primary">Draw New Room</button>
-                    <button id="btn-clear-room" class="btn btn-secondary">Clear Room</button>
-                    <p class="hint" id="room-hint">Click on canvas to place vertices. Click near the first point to close the room.</p>
-                </div>
-                <div class="walls-list" id="walls-list"></div>
-            </section>
+            <p class="hint" id="room-hint">Click on canvas to place vertices. Click near the first point to close the room.</p>
+            <div class="walls-list" id="walls-list"></div>
 
             <section class="panel">
                 <h2>Plank Settings</h2>
@@ -60,7 +67,7 @@
                     <label for="offset-pattern">Offset Pattern</label>
                     <select id="offset-pattern">
                         <option value="0.5">1/2 (50%)</option>
-                        <option value="0.333">1/3 (33%)</option>
+                        <option value="0.333" selected>1/3 (33%)</option>
                         <option value="0.25">1/4 (25%)</option>
                         <option value="custom">Custom...</option>
                     </select>
@@ -211,6 +218,48 @@
                 <div class="modal-canvas-hint">Scroll to zoom, drag to pan</div>
                 <canvas id="plank-detail-canvas"></canvas>
                 <div class="plank-detail-info" id="plank-detail-info"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal-overlay modal-sm" id="help-modal" style="display: none;">
+        <div class="modal modal-dialog modal-help">
+            <div class="modal-header">
+                <h2>How to Use</h2>
+                <button class="modal-close" id="help-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h3>Drawing a Room</h3>
+                <ul>
+                    <li><strong>Click</strong> on canvas to place vertices</li>
+                    <li><strong>Click near first point</strong> to close the room</li>
+                    <li><strong>Backspace</strong> to undo last vertex while drawing</li>
+                    <li><strong>Escape</strong> to cancel drawing</li>
+                </ul>
+
+                <h3>Editing Room Shape</h3>
+                <ul>
+                    <li><strong>Click wall label</strong> on canvas to select and edit dimension</li>
+                    <li><strong>First dimension edit</strong> scales room proportionally</li>
+                    <li><strong>Shift + Drag vertex</strong> to move it</li>
+                    <li><strong>Shift + Click vertex</strong> to delete it</li>
+                    <li><strong>Shift + Click wall</strong> to add a vertex</li>
+                </ul>
+
+                <h3>Adjusting Floor Layout</h3>
+                <ul>
+                    <li><strong>Right-click + Drag</strong> (or Ctrl+Drag) to move floor position</li>
+                    <li><strong>Rotation slider</strong> to angle the planks</li>
+                    <li><strong>Click a plank</strong> to see details and adjust row offset</li>
+                </ul>
+
+                <h3>Navigation</h3>
+                <ul>
+                    <li><strong>Scroll wheel</strong> to zoom in/out</li>
+                    <li><strong>Click + Drag</strong> to pan the view</li>
+                    <li><strong>Click plank preview</strong> to see enlarged detail</li>
+                </ul>
             </div>
         </div>
     </div>

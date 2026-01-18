@@ -46,6 +46,11 @@ export function initRoomManager(canvas) {
     const btnDeleteRoom = document.getElementById('btn-delete-room');
     const btnShareRoom = document.getElementById('btn-share-room');
     const btnLockRoom = document.getElementById('btn-lock-room');
+    const btnHelp = document.getElementById('btn-help');
+
+    // Help modal
+    const helpModal = document.getElementById('help-modal');
+    const helpModalClose = document.getElementById('help-modal-close');
 
     // Save dialog
     const saveDialog = document.getElementById('save-dialog');
@@ -273,11 +278,12 @@ export function initRoomManager(canvas) {
 
         // Copy to clipboard
         navigator.clipboard.writeText(url.toString()).then(() => {
-            // Show brief feedback
-            const originalText = btnShareRoom.textContent;
-            btnShareRoom.textContent = 'Copied!';
+            // Show brief feedback with success color
+            btnShareRoom.classList.add('btn-icon-success');
+            btnShareRoom.title = 'Copied!';
             setTimeout(() => {
-                btnShareRoom.textContent = originalText;
+                btnShareRoom.classList.remove('btn-icon-success');
+                btnShareRoom.title = 'Share room';
             }, 1500);
         }).catch(() => {
             // Fallback: just update URL
@@ -291,19 +297,19 @@ export function initRoomManager(canvas) {
         const currentState = state.get();
         const isLocked = currentState.ui.isLocked;
 
-        // Update button appearance
+        // Update button appearance (icon handled via CSS)
         if (isLocked) {
-            btnLockRoom.textContent = 'Unlock';
             btnLockRoom.classList.add('btn-locked');
+            btnLockRoom.title = 'Unlock layout';
         } else {
-            btnLockRoom.textContent = 'Lock';
             btnLockRoom.classList.remove('btn-locked');
+            btnLockRoom.title = 'Lock layout';
         }
 
         // Disable/enable sidebar inputs
         const sidebar = document.querySelector('.sidebar');
         const inputs = sidebar.querySelectorAll('input, select');
-        const buttons = sidebar.querySelectorAll('.panel button, .room-controls button');
+        const buttons = sidebar.querySelectorAll('.panel button');
 
         inputs.forEach(input => {
             input.disabled = isLocked;
@@ -324,6 +330,21 @@ export function initRoomManager(canvas) {
 
     // Initial lock state
     updateLockState();
+
+    // Help button
+    btnHelp.addEventListener('click', () => {
+        helpModal.style.display = 'flex';
+    });
+
+    helpModalClose.addEventListener('click', () => {
+        helpModal.style.display = 'none';
+    });
+
+    helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) {
+            helpModal.style.display = 'none';
+        }
+    });
 
     // Save dialog handlers
     function confirmSave() {
@@ -423,6 +444,7 @@ export function initRoomManager(canvas) {
             }
             if (deleteDialog.style.display !== 'none') hideDeleteDialog();
             if (unsavedDialog.style.display !== 'none') hideUnsavedDialog();
+            if (helpModal.style.display !== 'none') helpModal.style.display = 'none';
         }
     });
 
