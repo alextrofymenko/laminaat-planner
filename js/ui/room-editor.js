@@ -549,18 +549,26 @@ export function updateWallsList(vertices, wallDimensions) {
         const j = (i + 1) % n;
         const v1 = vertices[i];
         const v2 = vertices[j];
-        const length = Math.round(distance(v1, v2) * 10) / 10; // Round to 1 decimal
+        const actualLength = Math.round(distance(v1, v2) * 10) / 10; // Round to 1 decimal
+        const targetLength = wallDimensions[i];
         const wallLabel = String.fromCharCode(65 + i); // A, B, C, ...
 
+        // Check if there's a mismatch between target and actual
+        const hasMismatch = targetLength !== undefined && targetLength !== null &&
+            Math.abs(targetLength - actualLength) > 0.2;
+
         html += `
-            <div class="wall-item">
+            <div class="wall-item ${hasMismatch ? 'has-mismatch' : ''}">
                 <span>Wall ${wallLabel}</span>
-                <input type="number"
-                       value="${wallDimensions[i] || length}"
-                       data-wall-index="${i}"
-                       class="wall-dimension-input"
-                       min="1"
-                       step="0.1"> cm
+                <div class="wall-dimension-group">
+                    <input type="number"
+                           value="${actualLength}"
+                           data-wall-index="${i}"
+                           class="wall-dimension-input"
+                           min="1"
+                           step="0.1"> cm
+                    ${hasMismatch ? `<span class="wall-target" title="Target dimension">(target: ${targetLength})</span>` : ''}
+                </div>
             </div>
         `;
     }

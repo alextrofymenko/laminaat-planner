@@ -160,6 +160,18 @@ body {
     font-size: 0.85rem;
 }
 
+.wall-item.has-mismatch {
+    background: rgba(255, 107, 107, 0.15);
+    border: 1px solid rgba(255, 107, 107, 0.4);
+}
+
+.wall-dimension-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
 .wall-item input {
     width: 70px;
     padding: 4px 8px;
@@ -168,6 +180,11 @@ body {
     border-radius: 4px;
     color: var(--text-primary);
     font-size: 0.85rem;
+}
+
+.wall-target {
+    font-size: 0.7rem;
+    color: var(--warning);
 }
 
 .stats-panel .stat-row {
