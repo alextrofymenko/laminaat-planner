@@ -17,6 +17,7 @@ import { fitBoundsToView } from './geometry/transforms.js';
 import { initRoomEditor, updateWallsList } from './ui/room-editor.js';
 import { initControls, initPanZoom, initFloorDrag } from './ui/controls.js';
 import { updateStatsDisplay, updateOverlay } from './ui/stats.js';
+import { initRoomManager } from './ui/room-manager.js';
 import { throttle, round } from './utils.js';
 
 // Initialize application
@@ -41,6 +42,7 @@ function init() {
     initControls(canvas);
     initPanZoom(canvas);
     initFloorDrag(canvas, getTransform);
+    initRoomManager(canvas);
 
     // Plank click handler - runs before room-editor click handler
     canvas.addEventListener('click', (e) => {

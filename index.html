@@ -11,6 +11,24 @@
         <aside class="sidebar">
             <h1>Laminaat Planner</h1>
 
+            <!-- Room Switcher -->
+            <div class="room-switcher" id="room-switcher">
+                <button class="room-switcher-btn" id="current-room-btn">
+                    <span class="room-switcher-name" id="current-room-name">Unsaved Room</span>
+                    <span class="room-switcher-arrow">▼</span>
+                </button>
+                <div class="room-dropdown" id="room-dropdown">
+                    <div class="room-list" id="room-list"></div>
+                </div>
+            </div>
+
+            <!-- Room Actions -->
+            <div class="room-actions">
+                <button id="btn-save-room" class="btn btn-primary btn-sm">Save Room</button>
+                <button id="btn-new-room-action" class="btn btn-secondary btn-sm">New</button>
+                <button id="btn-delete-room" class="btn btn-danger btn-sm" style="display: none;">Delete</button>
+            </div>
+
             <section class="panel">
                 <h2>Room</h2>
                 <div class="room-controls">
@@ -121,6 +139,59 @@
                 <span class="overlay-text">Draw a room to start planning</span>
             </div>
         </main>
+    </div>
+
+    <!-- Save Room Dialog -->
+    <div class="modal-overlay modal-sm" id="save-dialog" style="display: none;">
+        <div class="modal modal-dialog">
+            <div class="modal-header">
+                <h2>Save Room</h2>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="save-room-name">Room Name</label>
+                    <input type="text" id="save-room-name" placeholder="e.g. Living Room">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="save-dialog-cancel">Cancel</button>
+                <button class="btn btn-primary" id="save-dialog-confirm">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <div class="modal-overlay modal-sm" id="delete-dialog" style="display: none;">
+        <div class="modal modal-dialog">
+            <div class="modal-header">
+                <h2>Delete Room</h2>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete "<span id="delete-room-name"></span>"?</p>
+                <p class="text-muted">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="delete-dialog-cancel">Cancel</button>
+                <button class="btn btn-danger" id="delete-dialog-confirm">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unsaved Changes Dialog -->
+    <div class="modal-overlay modal-sm" id="unsaved-dialog" style="display: none;">
+        <div class="modal modal-dialog">
+            <div class="modal-header">
+                <h2>Unsaved Changes</h2>
+            </div>
+            <div class="modal-body">
+                <p>You have unsaved changes. What would you like to do?</p>
+            </div>
+            <div class="modal-footer modal-footer-3">
+                <button class="btn btn-secondary" id="unsaved-dialog-cancel">Cancel</button>
+                <button class="btn btn-secondary" id="unsaved-dialog-discard">Discard</button>
+                <button class="btn btn-primary" id="unsaved-dialog-save">Save First</button>
+            </div>
+        </div>
     </div>
 
     <!-- Plank Detail Modal -->
