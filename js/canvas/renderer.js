@@ -198,7 +198,7 @@ export function createRenderer(canvas) {
         }
     }
 
-    function drawPlanks(planks, transform, minLength, minWidth, roomVertices, selectedPlankId = null, hoveredPlankId = null) {
+    function drawPlanks(planks, transform, minLength, minWidth, roomVertices, selectedPlankKey = null, hoveredPlankKey = null) {
         if (!roomVertices || roomVertices.length < 3) return;
 
         // Create clipping path from room polygon
@@ -218,8 +218,9 @@ export function createRenderer(canvas) {
             // Only edge planks can be "too small" - full interior planks are never flagged
             const isTooSmall = plank.isEdgePlank &&
                 (plank.clippedLength < minLength || plank.clippedWidth < minWidth);
-            const isSelected = plank.id === selectedPlankId;
-            const isHovered = plank.id === hoveredPlankId && !isSelected;
+            const plankKey = `${plank.row},${plank.col}`;
+            const isSelected = plankKey === selectedPlankKey;
+            const isHovered = plankKey === hoveredPlankKey && !isSelected;
 
             // Draw full plank rectangle using corners
             const screenCorners = plank.corners.map(v => transform.worldToScreen(v.x, v.y));
@@ -252,10 +253,11 @@ export function createRenderer(canvas) {
         ctx.restore();
     }
 
-    function drawFullPlankMarkers(planks, transform, selectedPlankId = null) {
+    function drawFullPlankMarkers(planks, transform, selectedPlankKey = null) {
         // Draw green checkmarks for full planks
         for (const plank of planks) {
-            if (plank.isFull && plank.id !== selectedPlankId) {
+            const plankKey = `${plank.row},${plank.col}`;
+            if (plank.isFull && plankKey !== selectedPlankKey) {
                 const center = transform.worldToScreen(plank.cx, plank.cy);
                 const radius = 10;
 

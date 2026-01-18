@@ -65,12 +65,14 @@ function init() {
             if (isPointInPlank(worldPos, plank)) {
                 // Stop propagation to prevent wall click handler from also firing
                 e.stopImmediatePropagation();
+                // Use row,col as stable identifier (survives grid regeneration)
+                const plankKey = `${plank.row},${plank.col}`;
                 // Toggle selection - clear wall selection when selecting plank
-                if (currentState.ui.selectedPlank === plank.id) {
+                if (currentState.ui.selectedPlank === plankKey) {
                     state.set('ui.selectedPlank', null);
                 } else {
                     state.batch({
-                        'ui.selectedPlank': plank.id,
+                        'ui.selectedPlank': plankKey,
                         'ui.selectedWall': null
                     });
                     // Scroll preview panel into view
@@ -126,10 +128,12 @@ function init() {
         for (let i = planks.length - 1; i >= 0; i--) {
             const plank = planks[i];
             if (isPointInPlank(worldPos, plank)) {
+                // Use row,col as stable identifier
+                const plankKey = `${plank.row},${plank.col}`;
                 // Update state - plank hover takes priority over wall hover
                 const updates = {};
-                if (currentState.ui.hoveredPlank !== plank.id) {
-                    updates['ui.hoveredPlank'] = plank.id;
+                if (currentState.ui.hoveredPlank !== plankKey) {
+                    updates['ui.hoveredPlank'] = plankKey;
                 }
                 // Clear wall hover if set (plank takes priority)
                 if (currentState.ui.hoveredWall !== null) {
@@ -359,16 +363,17 @@ function init() {
         });
     }
 
-    function updatePlankPreview(planks, selectedPlankId, roomVertices) {
+    function updatePlankPreview(planks, selectedPlankKey, roomVertices) {
         if (!previewPanel || !previewCanvas || !previewCtx) return;
 
-        if (selectedPlankId === null) {
+        if (selectedPlankKey === null) {
             previewPanel.style.display = 'none';
             currentSelectedRow = null;
             return;
         }
 
-        const plank = planks.find(p => p.id === selectedPlankId);
+        // Find plank by row,col key
+        const plank = planks.find(p => `${p.row},${p.col}` === selectedPlankKey);
         if (!plank) {
             previewPanel.style.display = 'none';
             currentSelectedRow = null;
@@ -762,7 +767,7 @@ function init() {
             if (currentState.ui.selectedPlank === null) return;
 
             const planks = generatePlanks(currentState);
-            const plank = planks.find(p => p.id === currentState.ui.selectedPlank);
+            const plank = planks.find(p => `${p.row},${p.col}` === currentState.ui.selectedPlank);
             if (!plank) return;
 
             openPlankModal(plank, currentState.room.vertices);

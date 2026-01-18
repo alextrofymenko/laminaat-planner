@@ -43,7 +43,7 @@ const initialState = {
     ui: {
         mode: 'drawing', // 'idle', 'drawing', 'editing', 'dragging' - start in drawing mode
         selectedWall: null,
-        selectedPlank: null, // Selected plank id
+        selectedPlank: null, // Selected plank as "row,col" string
         selectedRow: null,
         hoveredVertex: null,
         hoveredWall: null,
