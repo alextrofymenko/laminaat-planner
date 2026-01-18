@@ -109,6 +109,25 @@
         </main>
     </div>
 
+    <!-- Plank Detail Modal -->
+    <div class="modal-overlay" id="plank-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Plank Details</h2>
+                <div class="modal-controls">
+                    <span class="zoom-indicator" id="zoom-indicator">100%</span>
+                    <button class="btn btn-sm" id="modal-reset-zoom" title="Reset zoom">Fit</button>
+                    <button class="modal-close" id="modal-close">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="modal-canvas-hint">Scroll to zoom, drag to pan</div>
+                <canvas id="plank-detail-canvas"></canvas>
+                <div class="plank-detail-info" id="plank-detail-info"></div>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -335,6 +335,157 @@ body {
     margin-bottom: 0.25rem;
 }
 
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+    font-size: 1.1rem;
+    color: var(--accent);
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.zoom-indicator {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 40px;
+    text-align: right;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    border-radius: 4px;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-canvas-hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+#plank-detail-canvas {
+    width: 100%;
+    aspect-ratio: 1;
+    background: var(--bg-primary);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    cursor: grab;
+}
+
+#plank-detail-canvas:active {
+    cursor: grabbing;
+}
+
+.plank-detail-info {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.plank-detail-info .info-section {
+    background: var(--bg-panel);
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.plank-detail-info .info-section h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.plank-detail-info .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 0.9rem;
+}
+
+.plank-detail-info .info-label {
+    color: var(--text-secondary);
+}
+
+.plank-detail-info .info-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.plank-detail-info .edge-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.plank-detail-info .edge-list li {
+    padding: 4px 0;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.plank-detail-info .edge-list li:last-child {
+    border-bottom: none;
+}
+
+.plank-detail-info .angle-warning {
+    color: var(--warning);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .app {
