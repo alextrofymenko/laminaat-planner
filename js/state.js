@@ -75,6 +75,35 @@ function deepClone(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
+// Encode room state for sharing via URL
+export function encodeRoomState(s) {
+    const shareData = {
+        room: s.room,
+        plank: s.plank,
+        floor: s.floor,
+        minimums: s.minimums,
+        wallGap: s.wallGap
+    };
+    const json = JSON.stringify(shareData);
+    return btoa(encodeURIComponent(json));
+}
+
+// Decode room state from URL parameter
+export function decodeRoomState(encoded) {
+    try {
+        const json = decodeURIComponent(atob(encoded));
+        const data = JSON.parse(json);
+        // Validate required fields exist
+        if (!data.room || !data.plank || !data.floor || !data.minimums) {
+            return null;
+        }
+        return data;
+    } catch (e) {
+        console.warn('Failed to decode shared room state:', e);
+        return null;
+    }
+}
+
 // Load state from localStorage
 function loadState() {
     try {
@@ -385,6 +414,45 @@ export const roomManager = {
         storage.currentRoomId = null;
         saveRoomsStorage(storage);
 
+        notifyMetaListeners();
+    },
+
+    loadSharedState(data) {
+        // Prevent autoSave during load
+        isLoadingRoom = true;
+
+        state.batch({
+            'room.vertices': data.room.vertices || [],
+            'room.isComplete': data.room.isComplete || false,
+            'room.wallDimensions': data.room.wallDimensions || [],
+            'room.hasBeenScaled': data.room.hasBeenScaled || false,
+            'plank.length': data.plank.length,
+            'plank.width': data.plank.width,
+            'floor.rotation': data.floor.rotation,
+            'floor.offsetPattern': data.floor.offsetPattern,
+            'floor.offsetX': data.floor.offsetX || 0,
+            'floor.offsetY': data.floor.offsetY || 0,
+            'floor.rowOffsets': data.floor.rowOffsets || {},
+            'minimums.length': data.minimums.length,
+            'minimums.width': data.minimums.width,
+            'wallGap': data.wallGap !== undefined ? data.wallGap : 0.5,
+            'ui.mode': data.room.isComplete ? 'idle' : 'drawing',
+            'ui.selectedWall': null,
+            'ui.selectedPlank': null,
+            'ui.selectedRow': null
+        });
+
+        // Mark as unsaved room
+        roomMeta.currentRoomId = null;
+        roomMeta.lastSavedSnapshot = null;
+        roomMeta.isDirty = true;
+
+        // Clear current room from storage
+        const storage = loadRoomsStorage();
+        storage.currentRoomId = null;
+        saveRoomsStorage(storage);
+
+        isLoadingRoom = false;
         notifyMetaListeners();
     },
 

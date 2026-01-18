@@ -3,16 +3,37 @@
  * Handles room switcher dropdown, save/load/delete functionality
  */
 
-import { state, roomManager } from '../state.js';
+import { state, roomManager, encodeRoomState, decodeRoomState } from '../state.js';
 import { polygonBounds } from '../geometry/polygon.js';
 import { fitBoundsToView } from '../geometry/transforms.js';
 
 let pendingRoomSwitch = null;
 let onSaveComplete = null;
 
+function checkForSharedRoom() {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get('share');
+    if (encoded) {
+        return decodeRoomState(encoded);
+    }
+    return null;
+}
+
 export function initRoomManager(canvas) {
-    // Initialize room manager state
-    roomManager.init();
+    // Check for shared room in URL before initializing
+    const sharedData = checkForSharedRoom();
+    if (sharedData) {
+        roomManager.loadSharedState(sharedData);
+        // Clear the URL parameter without reloading
+        const url = new URL(window.location);
+        url.searchParams.delete('share');
+        window.history.replaceState({}, '', url);
+        // Fit view to loaded room
+        setTimeout(() => fitViewToRoom(), 0);
+    } else {
+        // Initialize room manager state normally
+        roomManager.init();
+    }
 
     // Get UI elements
     const roomSwitcher = document.getElementById('room-switcher');
@@ -23,6 +44,7 @@ export function initRoomManager(canvas) {
     const btnSaveRoom = document.getElementById('btn-save-room');
     const btnNewRoom = document.getElementById('btn-new-room-action');
     const btnDeleteRoom = document.getElementById('btn-delete-room');
+    const btnShareRoom = document.getElementById('btn-share-room');
 
     // Save dialog
     const saveDialog = document.getElementById('save-dialog');
@@ -236,6 +258,32 @@ export function initRoomManager(canvas) {
 
     // Delete button
     btnDeleteRoom.addEventListener('click', showDeleteDialog);
+
+    // Share button
+    btnShareRoom.addEventListener('click', () => {
+        const currentState = state.get();
+        if (!currentState.room.isComplete || currentState.room.vertices.length < 3) {
+            return; // Nothing to share
+        }
+
+        const encoded = encodeRoomState(currentState);
+        const url = new URL(window.location);
+        url.searchParams.set('share', encoded);
+
+        // Copy to clipboard
+        navigator.clipboard.writeText(url.toString()).then(() => {
+            // Show brief feedback
+            const originalText = btnShareRoom.textContent;
+            btnShareRoom.textContent = 'Copied!';
+            setTimeout(() => {
+                btnShareRoom.textContent = originalText;
+            }, 1500);
+        }).catch(() => {
+            // Fallback: just update URL
+            window.history.replaceState({}, '', url);
+            alert('Share URL updated in address bar');
+        });
+    });
 
     // Save dialog handlers
     function confirmSave() {
