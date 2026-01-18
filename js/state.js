@@ -39,8 +39,11 @@ const initialState = {
     ui: {
         mode: 'drawing', // 'idle', 'drawing', 'editing', 'dragging' - start in drawing mode
         selectedWall: null,
+        selectedPlank: null, // Selected plank id
         selectedRow: null,
         hoveredVertex: null,
+        hoveredWall: null,
+        hoveredPlank: null,
         isDraggingVertex: false, // Vertex drag in progress
     },
 

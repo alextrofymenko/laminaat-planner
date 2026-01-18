@@ -101,7 +101,7 @@ export function createRenderer(canvas) {
         }
     }
 
-    function drawRoom(vertices, transform, isComplete, hoveredVertex = null, selectedWall = null) {
+    function drawRoom(vertices, transform, isComplete, hoveredVertex = null, selectedWall = null, hoveredWall = null) {
         if (vertices.length === 0) return;
 
         const screenVertices = vertices.map(v => transform.worldToScreen(v.x, v.y));
@@ -125,8 +125,20 @@ export function createRenderer(canvas) {
             if (!isComplete && i === n - 1) break; // Don't close if not complete
 
             const isSelected = selectedWall === i;
-            ctx.strokeStyle = isSelected ? '#ffcc00' : COLORS.room.stroke;
-            ctx.lineWidth = isSelected ? 4 : 2;
+            const isHovered = hoveredWall === i && !isSelected;
+
+            if (isSelected) {
+                ctx.strokeStyle = '#ffcc00';
+                ctx.lineWidth = 4;
+            } else if (isHovered) {
+                // Subtle hover - slightly brighter blue
+                ctx.strokeStyle = '#6bb3ff';
+                ctx.lineWidth = 3;
+            } else {
+                ctx.strokeStyle = COLORS.room.stroke;
+                ctx.lineWidth = 2;
+            }
+
             ctx.beginPath();
             ctx.moveTo(screenVertices[i].x, screenVertices[i].y);
             ctx.lineTo(screenVertices[j].x, screenVertices[j].y);
@@ -186,7 +198,7 @@ export function createRenderer(canvas) {
         }
     }
 
-    function drawPlanks(planks, transform, minLength, minWidth, roomVertices) {
+    function drawPlanks(planks, transform, minLength, minWidth, roomVertices, selectedPlankId = null, hoveredPlankId = null) {
         if (!roomVertices || roomVertices.length < 3) return;
 
         // Create clipping path from room polygon
@@ -206,13 +218,26 @@ export function createRenderer(canvas) {
             // Only edge planks can be "too small" - full interior planks are never flagged
             const isTooSmall = plank.isEdgePlank &&
                 (plank.clippedLength < minLength || plank.clippedWidth < minWidth);
+            const isSelected = plank.id === selectedPlankId;
+            const isHovered = plank.id === hoveredPlankId && !isSelected;
 
             // Draw full plank rectangle using corners
             const screenCorners = plank.corners.map(v => transform.worldToScreen(v.x, v.y));
 
-            ctx.fillStyle = isTooSmall ? COLORS.plank.warning : COLORS.plank.fill;
-            ctx.strokeStyle = isTooSmall ? COLORS.plank.warningStroke : COLORS.plank.stroke;
-            ctx.lineWidth = 1;
+            if (isSelected) {
+                ctx.fillStyle = '#5a9fd4';
+                ctx.strokeStyle = '#2171b5';
+                ctx.lineWidth = 3;
+            } else if (isHovered) {
+                // Subtle hover highlight - slightly lighter
+                ctx.fillStyle = isTooSmall ? '#ffcaca' : '#e0b88a';
+                ctx.strokeStyle = isTooSmall ? COLORS.plank.warningStroke : '#9a7520';
+                ctx.lineWidth = 2;
+            } else {
+                ctx.fillStyle = isTooSmall ? COLORS.plank.warning : COLORS.plank.fill;
+                ctx.strokeStyle = isTooSmall ? COLORS.plank.warningStroke : COLORS.plank.stroke;
+                ctx.lineWidth = 1;
+            }
 
             ctx.beginPath();
             ctx.moveTo(screenCorners[0].x, screenCorners[0].y);

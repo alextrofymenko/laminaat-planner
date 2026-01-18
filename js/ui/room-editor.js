@@ -138,6 +138,11 @@ export function initRoomEditor(canvas, getTransform) {
             return;
         }
 
+        // Skip click during dragging (panning or floor drag)
+        if (canvas.classList.contains('panning') || canvas.classList.contains('dragging')) {
+            return;
+        }
+
         const currentState = state.get();
 
         // Shift+click on wall to add vertex (vertex clicks handled by mousedown/up)
@@ -150,7 +155,11 @@ export function initRoomEditor(canvas, getTransform) {
         if (!e.shiftKey && currentState.room.isComplete && currentState.ui.mode === 'idle') {
             const wallIndex = getWallAtPosition(e, currentState, getTransform);
             if (wallIndex !== null) {
-                state.set('ui.selectedWall', wallIndex);
+                // Clear plank selection when selecting wall
+                state.batch({
+                    'ui.selectedWall': wallIndex,
+                    'ui.selectedPlank': null
+                });
                 // Focus the corresponding input
                 const input = document.querySelector(`.wall-dimension-input[data-wall-index="${wallIndex}"]`);
                 if (input) {
@@ -231,6 +240,15 @@ export function initRoomEditor(canvas, getTransform) {
 
     function handleMouseMove(e) {
         const currentState = state.get();
+
+        // Skip hover during dragging (panning or floor drag)
+        if (canvas.classList.contains('panning') || canvas.classList.contains('dragging')) {
+            if (currentState.ui.hoveredWall !== null) {
+                state.set('ui.hoveredWall', null);
+            }
+            return;
+        }
+
         const transform = getTransform();
         const rect = canvas.getBoundingClientRect();
         // Work in CSS pixels
@@ -238,17 +256,31 @@ export function initRoomEditor(canvas, getTransform) {
         const screenY = e.clientY - rect.top;
         const snapDist = SNAP_DISTANCE;
 
-        // Handle cursor for idle mode (walls are clickable)
+        // Handle cursor and hover state for idle mode (walls are clickable)
         if (!e.shiftKey && currentState.room.isComplete && currentState.ui.mode === 'idle') {
-            const wallIndex = getWallAtPosition(e, currentState, getTransform);
-            if (wallIndex !== null) {
-                canvas.style.cursor = 'pointer';
-                return;
+            // Only show wall hover if not hovering over a plank (planks take priority)
+            if (currentState.ui.hoveredPlank === null) {
+                const wallIndex = getWallAtPosition(e, currentState, getTransform);
+                if (wallIndex !== null) {
+                    if (currentState.ui.hoveredWall !== wallIndex) {
+                        state.set('ui.hoveredWall', wallIndex);
+                    }
+                    canvas.style.cursor = 'pointer';
+                    return;
+                }
+            }
+            // Clear wall hover if not over a wall (or if hovering a plank)
+            if (currentState.ui.hoveredWall !== null) {
+                state.set('ui.hoveredWall', null);
             }
         }
 
         // Handle cursor for Shift+edit mode
         if (e.shiftKey && currentState.room.isComplete && currentState.ui.mode === 'idle') {
+            // Clear wall hover in shift mode
+            if (currentState.ui.hoveredWall !== null) {
+                state.set('ui.hoveredWall', null);
+            }
             const vertices = currentState.room.vertices;
             const n = vertices.length;
 
@@ -297,6 +329,10 @@ export function initRoomEditor(canvas, getTransform) {
         if (currentState.ui.mode !== 'drawing') {
             mouseWorldPos = null;
             canvas.style.cursor = 'default';
+            // Clear wall hover when not in idle mode
+            if (currentState.ui.hoveredWall !== null) {
+                state.set('ui.hoveredWall', null);
+            }
             return;
         }
 
@@ -541,7 +577,11 @@ export function updateWallsList(vertices, wallDimensions) {
 
         input.addEventListener('focus', (e) => {
             const index = parseInt(e.target.dataset.wallIndex);
-            state.set('ui.selectedWall', index);
+            // Clear plank selection when focusing wall input
+            state.batch({
+                'ui.selectedWall': index,
+                'ui.selectedPlank': null
+            });
         });
 
         input.addEventListener('blur', () => {
