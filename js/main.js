@@ -311,21 +311,97 @@ function init() {
     const previewInfo = document.getElementById('plank-info');
     const previewCtx = previewCanvas ? previewCanvas.getContext('2d') : null;
 
+    // Row offset controls
+    const rowOffsetControls = document.getElementById('row-offset-controls');
+    const rowNumberSpan = document.getElementById('row-number');
+    const rowOffsetSlider = document.getElementById('row-offset');
+    const rowOffsetValueSpan = document.getElementById('row-offset-value');
+    const resetRowOffsetBtn = document.getElementById('btn-reset-row-offset');
+    let currentSelectedRow = null;
+
+    // Row offset slider handler
+    if (rowOffsetSlider) {
+        rowOffsetSlider.addEventListener('input', (e) => {
+            if (currentSelectedRow === null) return;
+            const value = parseInt(e.target.value);
+            const fraction = value / 100;
+
+            // Update the rowOffsets for this row
+            const currentState = state.get();
+            const newRowOffsets = { ...currentState.floor.rowOffsets };
+            newRowOffsets[currentSelectedRow] = fraction;
+
+            state.set('floor.rowOffsets', newRowOffsets);
+
+            if (rowOffsetValueSpan) {
+                rowOffsetValueSpan.textContent = `${value}%`;
+            }
+        });
+    }
+
+    // Reset row offset button handler
+    if (resetRowOffsetBtn) {
+        resetRowOffsetBtn.addEventListener('click', () => {
+            if (currentSelectedRow === null) return;
+
+            const currentState = state.get();
+            const newRowOffsets = { ...currentState.floor.rowOffsets };
+            delete newRowOffsets[currentSelectedRow];
+
+            state.set('floor.rowOffsets', newRowOffsets);
+        });
+    }
+
     function updatePlankPreview(planks, selectedPlankId, roomVertices) {
         if (!previewPanel || !previewCanvas || !previewCtx) return;
 
         if (selectedPlankId === null) {
             previewPanel.style.display = 'none';
+            currentSelectedRow = null;
             return;
         }
 
         const plank = planks.find(p => p.id === selectedPlankId);
         if (!plank) {
             previewPanel.style.display = 'none';
+            currentSelectedRow = null;
             return;
         }
 
         previewPanel.style.display = 'block';
+
+        // Update row offset controls
+        currentSelectedRow = plank.row;
+        const currentState = state.get();
+        const { offsetPattern, rowOffsets } = currentState.floor;
+
+        // Calculate what the offset is for this row (custom or calculated)
+        let currentOffset;
+        let hasCustomOffset = false;
+        if (rowOffsets[plank.row] !== undefined) {
+            currentOffset = rowOffsets[plank.row];
+            hasCustomOffset = true;
+        } else {
+            // Calculate base offset for this row
+            const baseOffset = (plank.row * offsetPattern) % 1;
+            currentOffset = baseOffset < 0 ? baseOffset + 1 : baseOffset;
+        }
+
+        const offsetPercent = Math.round(currentOffset * 100);
+
+        if (rowNumberSpan) {
+            rowNumberSpan.textContent = plank.row;
+        }
+        if (rowOffsetSlider) {
+            rowOffsetSlider.value = offsetPercent;
+        }
+        if (rowOffsetValueSpan) {
+            const customIndicator = hasCustomOffset ? ' <span class="row-offset-custom">(custom)</span>' : '';
+            rowOffsetValueSpan.innerHTML = `${offsetPercent}%${customIndicator}`;
+        }
+        if (resetRowOffsetBtn) {
+            resetRowOffsetBtn.style.display = hasCustomOffset ? 'inline-block' : 'none';
+        }
 
         // Use square dimensions for consistent preview at any rotation
         const width = 180;
@@ -671,10 +747,10 @@ function init() {
         }
     }
 
-    // Make preview panel clickable to open modal
-    if (previewPanel) {
-        previewPanel.style.cursor = 'pointer';
-        previewPanel.addEventListener('click', () => {
+    // Make preview canvas clickable to open modal
+    if (previewCanvas) {
+        previewCanvas.style.cursor = 'pointer';
+        previewCanvas.addEventListener('click', () => {
             const currentState = state.get();
             if (currentState.ui.selectedPlank === null) return;
 

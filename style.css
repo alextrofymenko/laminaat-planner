@@ -352,6 +352,45 @@ body {
     margin-bottom: 0.25rem;
 }
 
+/* Row Offset Controls */
+.row-offset-controls {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.row-offset-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.row-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.row-label #row-number {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.row-offset-controls .form-group {
+    margin-bottom: 0;
+}
+
+.row-offset-controls .btn-sm {
+    padding: 4px 10px;
+    margin: 0;
+}
+
+.row-offset-custom {
+    font-size: 0.7rem;
+    color: var(--accent);
+    margin-left: 4px;
+}
+
 /* Modal */
 .modal-overlay {
     position: fixed;

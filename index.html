@@ -96,6 +96,16 @@
                 <h2>Selected Plank</h2>
                 <canvas id="plank-preview-canvas" width="200" height="120"></canvas>
                 <div class="plank-info" id="plank-info"></div>
+                <div class="row-offset-controls" id="row-offset-controls">
+                    <div class="row-offset-header">
+                        <span class="row-label">Row <span id="row-number">0</span> Offset</span>
+                        <button class="btn btn-sm" id="btn-reset-row-offset">Reset</button>
+                    </div>
+                    <div class="form-group">
+                        <input type="range" id="row-offset" value="50" min="0" max="100" step="1">
+                        <span id="row-offset-value">50%</span>
+                    </div>
+                </div>
             </section>
 
             <section class="panel">
