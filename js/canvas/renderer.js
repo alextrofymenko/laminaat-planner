@@ -231,9 +231,8 @@ export function createRenderer(canvas) {
 
         // Draw planks (will be clipped to room shape)
         for (const plank of planks) {
-            // Only edge planks can be "too small" - full interior planks are never flagged
-            const isTooSmall = plank.isEdgePlank &&
-                (plank.clippedLength < minLength || plank.clippedWidth < minWidth);
+            // Only edge planks can be "too small" - check minimum visible width
+            const isTooSmall = plank.isEdgePlank && plank.minVisibleWidth < minWidth;
             const plankKey = `${plank.row},${plank.col}`;
             const isSelected = plankKey === selectedPlankKey;
             const isHovered = plankKey === hoveredPlankKey && !isSelected;

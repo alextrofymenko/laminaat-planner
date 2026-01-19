@@ -99,16 +99,8 @@ export function initControls(canvas) {
         });
     }
 
-    // Minimum dimensions
-    const minLength = document.getElementById('min-length');
+    // Minimum visible width setting
     const minWidth = document.getElementById('min-width');
-
-    if (minLength) {
-        minLength.value = currentState.minimums.length;
-        minLength.addEventListener('change', (e) => {
-            state.set('minimums.length', parseFloat(e.target.value) || 30);
-        });
-    }
 
     if (minWidth) {
         minWidth.value = currentState.minimums.width;

@@ -818,7 +818,27 @@ body {
 }
 
 .plank-detail-info .angle-warning {
-    color: var(--warning);
+    color: #ffa500;
+}
+
+.plank-detail-info .edge-plank {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.plank-detail-info .edge-cut {
+    display: inline-block;
+    background: var(--warning);
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-weight: bold;
 }
 
 /* Responsive */

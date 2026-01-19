@@ -137,6 +137,8 @@ export function generatePlankGrid(config) {
                 let clippedLength = plankLength;
                 let clippedWidth = plankWidth;
 
+                let minVisibleWidth = plankWidth;
+
                 if (isEdgePlank) {
                     // Calculate clipped dimensions using wall intersections
                     const plankCenter = { x: worldX, y: worldY };
@@ -149,6 +151,7 @@ export function generatePlankGrid(config) {
                     );
                     clippedLength = dims.length;
                     clippedWidth = dims.width;
+                    minVisibleWidth = dims.minVisibleWidth;
                     area = clippedLength * clippedWidth;
                 }
 
@@ -167,7 +170,8 @@ export function generatePlankGrid(config) {
                     isFull,
                     isEdgePlank,
                     clippedLength,
-                    clippedWidth
+                    clippedWidth,
+                    minVisibleWidth
                 });
             }
         }
@@ -200,8 +204,8 @@ export function calculateStats(planks, minLength, minWidth) {
                 area: plank.area
             });
 
-            // Check minimum dimensions for edge planks only
-            if (plank.clippedLength < minLength || plank.clippedWidth < minWidth) {
+            // Check minimum visible width for edge planks only
+            if (plank.minVisibleWidth < minWidth) {
                 tooSmall++;
             }
         }

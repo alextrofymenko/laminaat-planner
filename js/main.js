@@ -766,8 +766,7 @@ function init() {
         baseScale: 1, // Initial fit-to-view scale
         plank: null,
         roomVertices: null,
-        edges: null,
-        angles: null
+        pieces: null // Array of { polygon, edges, angles } for each piece
     };
 
     // Reset modal view to fit
@@ -787,8 +786,8 @@ function init() {
     }
 
     function redrawModal() {
-        if (modalView.plank && modalView.edges && modalView.angles) {
-            drawDetailedPlank(modalView.plank, modalView.roomVertices, modalView.edges, modalView.angles, 400);
+        if (modalView.plank && modalView.pieces) {
+            drawDetailedPlank(modalView.plank, modalView.roomVertices, modalView.pieces, 400);
         }
     }
 
@@ -827,7 +826,7 @@ function init() {
 
     // Detail canvas zoom/pan handling
     if (detailCanvas) {
-        // Mouse wheel zoom
+        // Mouse wheel zoom - pivot on cursor position
         detailCanvas.addEventListener('wheel', (e) => {
             e.preventDefault();
 
@@ -835,23 +834,28 @@ function init() {
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
 
-            // Zoom factor
-            const scrollAmount = Math.sign(e.deltaY);
-            const zoomFactor = 1 - scrollAmount * 0.1;
-            const newScale = Math.max(0.5, Math.min(10, modalView.scale * zoomFactor));
+            // Canvas center (use actual CSS size)
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
 
-            // Pivot on cursor position
-            const size = 400;
-            const centerX = size / 2;
-            const centerY = size / 2;
+            // Position relative to center
             const pivotX = mouseX - centerX;
             const pivotY = mouseY - centerY;
 
-            // Calculate new offset to keep point under cursor fixed
-            const worldX = (pivotX - modalView.offsetX) / modalView.scale;
-            const worldY = (pivotY - modalView.offsetY) / modalView.scale;
-            modalView.offsetX = pivotX - worldX * newScale;
-            modalView.offsetY = pivotY - worldY * newScale;
+            // Zoom factor (gentler zoom like main canvas)
+            const scrollAmount = Math.sign(e.deltaY);
+            const zoomFactor = 1 - scrollAmount * 0.08;
+            const newScale = Math.max(0.5, Math.min(10, modalView.scale * zoomFactor));
+
+            // Calculate "base" position under cursor (in post-base-transform space)
+            // screenPos = centerX + (basePos - centerX) * scale + offset
+            // => basePos - centerX = (screenPos - centerX - offset) / scale
+            const baseX = (pivotX - modalView.offsetX) / modalView.scale;
+            const baseY = (pivotY - modalView.offsetY) / modalView.scale;
+
+            // Calculate new offset to keep same base position under cursor
+            modalView.offsetX = pivotX - baseX * newScale;
+            modalView.offsetY = pivotY - baseY * newScale;
             modalView.scale = newScale;
 
             updateZoomIndicator();
@@ -913,18 +917,19 @@ function init() {
         detailCanvas.height = size * dpr;
         detailCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        // Get clipped polygon for edge plank (for measurements)
-        const clippedPolygon = getClippedPlankPolygon(plank, roomVertices);
+        // Calculate edges directly (works for any room shape)
+        const plankCorners = getPlankCorners(plank);
+        const edges = plank.isEdgePlank
+            ? calculateVisibleEdges(plankCorners, roomVertices)
+            : calculateFullPlankEdges(plankCorners);
 
-        // Calculate edges and angles
-        const edges = calculateEdges(clippedPolygon);
-        const angles = calculateAngles(clippedPolygon);
+        // Create single piece structure for compatibility
+        const allPieces = [{ edges, angles: [] }];
 
         // Store data for redrawing during zoom/pan
         modalView.plank = plank;
         modalView.roomVertices = roomVertices;
-        modalView.edges = edges;
-        modalView.angles = angles;
+        modalView.pieces = allPieces;
 
         // Reset view to fit
         modalView.scale = 1;
@@ -932,110 +937,188 @@ function init() {
         modalView.offsetY = 0;
         updateZoomIndicator();
 
-        // Draw detailed view (pass room vertices for correct clipping)
-        drawDetailedPlank(plank, roomVertices, edges, angles, size);
+        // Draw detailed view
+        drawDetailedPlank(plank, roomVertices, allPieces, size);
 
         // Update info panel
-        updateDetailInfo(plank, edges, angles);
+        updateDetailInfo(plank, allPieces);
     }
 
-    function getClippedPlankPolygon(plank, roomVertices) {
+    function getPlankCorners(plank) {
         const cos = Math.cos(plank.rotation);
         const sin = Math.sin(plank.rotation);
         const hw = plank.originalWidth / 2;
         const hh = plank.originalHeight / 2;
 
-        // Plank corners in world coords (CCW order)
-        const plankCorners = [
+        return [
             { x: plank.cx + (-hw) * cos - (-hh) * sin, y: plank.cy + (-hw) * sin + (-hh) * cos },
             { x: plank.cx + (hw) * cos - (-hh) * sin, y: plank.cy + (hw) * sin + (-hh) * cos },
             { x: plank.cx + (hw) * cos - (hh) * sin, y: plank.cy + (hw) * sin + (hh) * cos },
             { x: plank.cx + (-hw) * cos - (hh) * sin, y: plank.cy + (-hw) * sin + (hh) * cos }
         ];
-
-        if (!plank.isEdgePlank) {
-            return plankCorners;
-        }
-
-        // Build clipped polygon by walking the boundary
-        return buildClippedPolygon(plankCorners, roomVertices);
     }
 
-    // Build clipped polygon by collecting boundary points in order
-    function buildClippedPolygon(plankCorners, roomPoly) {
-        const allPoints = [];
+    function calculateFullPlankEdges(plankCorners) {
+        const edges = [];
+        for (let i = 0; i < 4; i++) {
+            const p1 = plankCorners[i];
+            const p2 = plankCorners[(i + 1) % 4];
+            const length = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+            edges.push({
+                p1: { ...p1, type: 'plankEdge', plankEdge: i },
+                p2: { ...p2, type: 'plankEdge', plankEdge: i },
+                length,
+                type: 'plank',
+                label: `P${i + 1}`
+            });
+        }
+        return edges;
+    }
 
-        // For each plank edge, collect visible segments
+    // Calculate visible edges directly without building a polygon
+    // This works correctly for any room shape including non-convex
+    function calculateVisibleEdges(plankCorners, roomPoly) {
+        const edges = [];
+        let plankEdgeCount = 0;
+        let cutEdgeCount = 0;
+
+        // For each plank edge, find visible segments
         for (let i = 0; i < 4; i++) {
             const p1 = plankCorners[i];
             const p2 = plankCorners[(i + 1) % 4];
 
-            // Check if corners are inside room
-            const p1Inside = pointInPolygon(p1, roomPoly);
-            const p2Inside = pointInPolygon(p2, roomPoly);
-
-            // Find all intersections with room edges
-            const intersections = [];
-            for (let j = 0; j < roomPoly.length; j++) {
-                const r1 = roomPoly[j];
-                const r2 = roomPoly[(j + 1) % roomPoly.length];
-                const inter = segmentIntersection(p1, p2, r1, r2);
-                if (inter) {
-                    const dx = p2.x - p1.x;
-                    const dy = p2.y - p1.y;
-                    const t = Math.abs(dx) > Math.abs(dy)
-                        ? (inter.x - p1.x) / dx
-                        : (inter.y - p1.y) / dy;
-                    intersections.push({ ...inter, t, roomEdge: j });
+            const visibleSegments = getVisibleSegments(p1, p2, roomPoly);
+            for (const seg of visibleSegments) {
+                const length = Math.sqrt((seg.end.x - seg.start.x) ** 2 + (seg.end.y - seg.start.y) ** 2);
+                if (length > 0.1) {
+                    plankEdgeCount++;
+                    edges.push({
+                        p1: { ...seg.start, type: 'plankEdge', plankEdge: i },
+                        p2: { ...seg.end, type: 'plankEdge', plankEdge: i },
+                        length,
+                        type: 'plank',
+                        label: `P${plankEdgeCount}`
+                    });
                 }
             }
-
-            // Sort intersections by t
-            intersections.sort((a, b) => a.t - b.t);
-
-            // Add points in order along this edge
-            if (p1Inside) {
-                allPoints.push({ ...p1, type: 'corner', edgeIdx: i });
-            }
-
-            for (const inter of intersections) {
-                allPoints.push({ x: inter.x, y: inter.y, type: 'intersection', edgeIdx: i, roomEdge: inter.roomEdge });
-            }
         }
 
-        // Now we need to also include room corners that are inside the plank
+        // For each room edge, find segments inside the plank (these are cuts)
         for (let j = 0; j < roomPoly.length; j++) {
-            const rp = roomPoly[j];
-            if (pointInPolygon(rp, plankCorners)) {
-                // Find where to insert this room corner
-                allPoints.push({ ...rp, type: 'roomCorner', roomIdx: j });
+            const r1 = roomPoly[j];
+            const r2 = roomPoly[(j + 1) % roomPoly.length];
+
+            const cutSegments = getSegmentInsidePlank(r1, r2, plankCorners);
+            for (const seg of cutSegments) {
+                const length = Math.sqrt((seg.end.x - seg.start.x) ** 2 + (seg.end.y - seg.start.y) ** 2);
+                if (length > 0.1) {
+                    cutEdgeCount++;
+                    edges.push({
+                        p1: { ...seg.start, type: 'roomEdge', roomEdge: j },
+                        p2: { ...seg.end, type: 'roomEdge', roomEdge: j },
+                        length,
+                        type: 'cut',
+                        label: `C${cutEdgeCount}`
+                    });
+                }
             }
         }
 
-        if (allPoints.length < 3) return [];
+        return edges;
+    }
 
-        // Sort all points by angle from centroid to get proper polygon order
-        const cx = allPoints.reduce((s, p) => s + p.x, 0) / allPoints.length;
-        const cy = allPoints.reduce((s, p) => s + p.y, 0) / allPoints.length;
+    // Get visible segments of a plank edge (parts inside the room)
+    function getVisibleSegments(p1, p2, roomPoly) {
+        const segments = [];
 
-        allPoints.sort((a, b) => {
-            const angleA = Math.atan2(a.y - cy, a.x - cx);
-            const angleB = Math.atan2(b.y - cy, b.x - cx);
-            return angleA - angleB;
-        });
-
-        // Remove near-duplicates
-        const result = [];
-        for (const p of allPoints) {
-            const isDupe = result.some(r =>
-                Math.abs(r.x - p.x) < 0.1 && Math.abs(r.y - p.y) < 0.1
-            );
-            if (!isDupe) {
-                result.push({ x: p.x, y: p.y, type: p.type });
+        // Find all intersections with room edges
+        const intersections = [];
+        for (let j = 0; j < roomPoly.length; j++) {
+            const r1 = roomPoly[j];
+            const r2 = roomPoly[(j + 1) % roomPoly.length];
+            const inter = segmentIntersection(p1, p2, r1, r2);
+            if (inter) {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                const t = len > 0.001 ? ((inter.x - p1.x) * dx + (inter.y - p1.y) * dy) / (len * len) : 0;
+                if (t > 0.001 && t < 0.999) {
+                    intersections.push({ x: inter.x, y: inter.y, t });
+                }
             }
         }
 
-        return result;
+        // Sort by t
+        intersections.sort((a, b) => a.t - b.t);
+
+        // Build segments by checking which parts are inside
+        const points = [
+            { x: p1.x, y: p1.y, t: 0 },
+            ...intersections,
+            { x: p2.x, y: p2.y, t: 1 }
+        ];
+
+        for (let i = 0; i < points.length - 1; i++) {
+            const midT = (points[i].t + points[i + 1].t) / 2;
+            const midX = p1.x + midT * (p2.x - p1.x);
+            const midY = p1.y + midT * (p2.y - p1.y);
+
+            if (pointInPolygon({ x: midX, y: midY }, roomPoly)) {
+                segments.push({
+                    start: { x: points[i].x, y: points[i].y },
+                    end: { x: points[i + 1].x, y: points[i + 1].y }
+                });
+            }
+        }
+
+        return segments;
+    }
+
+    // Get segments of a room edge that are inside the plank
+    function getSegmentInsidePlank(r1, r2, plankCorners) {
+        const segments = [];
+
+        // Find intersections with plank edges
+        const intersections = [];
+        for (let i = 0; i < 4; i++) {
+            const p1 = plankCorners[i];
+            const p2 = plankCorners[(i + 1) % 4];
+            const inter = segmentIntersection(r1, r2, p1, p2);
+            if (inter) {
+                const dx = r2.x - r1.x;
+                const dy = r2.y - r1.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                const t = len > 0.001 ? ((inter.x - r1.x) * dx + (inter.y - r1.y) * dy) / (len * len) : 0;
+                if (t > 0.001 && t < 0.999) {
+                    intersections.push({ x: inter.x, y: inter.y, t });
+                }
+            }
+        }
+
+        // Sort by t
+        intersections.sort((a, b) => a.t - b.t);
+
+        // Build segments
+        const points = [
+            { x: r1.x, y: r1.y, t: 0 },
+            ...intersections,
+            { x: r2.x, y: r2.y, t: 1 }
+        ];
+
+        for (let i = 0; i < points.length - 1; i++) {
+            const midT = (points[i].t + points[i + 1].t) / 2;
+            const midX = r1.x + midT * (r2.x - r1.x);
+            const midY = r1.y + midT * (r2.y - r1.y);
+
+            if (pointInPolygon({ x: midX, y: midY }, plankCorners)) {
+                segments.push({
+                    start: { x: points[i].x, y: points[i].y },
+                    end: { x: points[i + 1].x, y: points[i + 1].y }
+                });
+            }
+        }
+
+        return segments;
     }
 
     // Point in polygon using winding number (works for non-convex)
@@ -1082,42 +1165,6 @@ function init() {
         return null;
     }
 
-    function calculateEdges(polygon) {
-        const edges = [];
-        for (let i = 0; i < polygon.length; i++) {
-            const p1 = polygon[i];
-            const p2 = polygon[(i + 1) % polygon.length];
-            const length = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
-            edges.push({ p1, p2, length });
-        }
-        return edges;
-    }
-
-    function calculateAngles(polygon) {
-        const angles = [];
-        const n = polygon.length;
-        for (let i = 0; i < n; i++) {
-            const prev = polygon[(i - 1 + n) % n];
-            const curr = polygon[i];
-            const next = polygon[(i + 1) % n];
-
-            // Vectors from current point
-            const v1 = { x: prev.x - curr.x, y: prev.y - curr.y };
-            const v2 = { x: next.x - curr.x, y: next.y - curr.y };
-
-            // Angle between vectors (interior angle)
-            const dot = v1.x * v2.x + v1.y * v2.y;
-            const cross = v1.x * v2.y - v1.y * v2.x;
-            let angle = Math.atan2(Math.abs(cross), dot) * (180 / Math.PI);
-
-            // Determine if it's interior angle (adjust for polygon winding)
-            if (cross < 0) angle = 360 - angle;
-
-            angles.push({ point: curr, angle: Math.round(angle * 10) / 10 });
-        }
-        return angles;
-    }
-
     // Helper for rounded rectangles (cross-browser)
     function drawRoundedRect(ctx, x, y, width, height, radius) {
         ctx.beginPath();
@@ -1133,7 +1180,7 @@ function init() {
         ctx.closePath();
     }
 
-    function drawDetailedPlank(plank, roomVertices, edges, angles, size) {
+    function drawDetailedPlank(plank, roomVertices, pieces, size) {
         const ctx = detailCtx;
         const padding = 60;
 
@@ -1245,90 +1292,115 @@ function init() {
             ctx.stroke();
         }
 
-        // Draw edge labels with edge number and length
+        // Draw edge labels with arrows for each piece
         ctx.font = 'bold 11px -apple-system, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        for (let i = 0; i < edges.length; i++) {
-            const edge = edges[i];
-            const p1 = toCanvas(edge.p1);
-            const p2 = toCanvas(edge.p2);
-            const midX = (p1.x + p2.x) / 2;
-            const midY = (p1.y + p2.y) / 2;
+        for (const piece of pieces) {
+            const { edges } = piece;
 
-            // Calculate perpendicular offset for label
-            const dx = p2.x - p1.x;
-            const dy = p2.y - p1.y;
-            const len = Math.sqrt(dx * dx + dy * dy);
-            if (len < 25) continue; // Skip tiny edges
+            // Draw edges
+            for (let i = 0; i < edges.length; i++) {
+                const edge = edges[i];
+                const p1 = toCanvas(edge.p1);
+                const p2 = toCanvas(edge.p2);
 
-            const nx = -dy / len * 22;
-            const ny = dx / len * 22;
+                // Edge direction
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len < 20) continue; // Skip tiny edges
 
-            // Label with edge number and length
-            const edgeNum = i + 1;
-            const label = `${edgeNum}: ${round(edge.length, 1)}`;
-            const labelWidth = ctx.measureText(label).width + 8;
+                // Normalize direction
+                const ndx = dx / len;
+                const ndy = dy / len;
 
-            // Label background (rounded rect)
-            ctx.fillStyle = 'rgba(74, 158, 255, 0.9)';
-            drawRoundedRect(ctx, midX + nx - labelWidth / 2, midY + ny - 10, labelWidth, 20, 4);
-            ctx.fill();
+                // Perpendicular for label offset (pointing outward)
+                const nx = -ndy * 22;
+                const ny = ndx * 22;
 
-            // Label text
-            ctx.fillStyle = '#fff';
-            ctx.fillText(label, midX + nx, midY + ny);
-        }
+                // Determine colors based on edge type
+                const isCut = edge.type === 'cut';
+                const bgColor = isCut ? 'rgba(255, 107, 107, 0.95)' : 'rgba(74, 158, 255, 0.95)';
+                const arrowColor = isCut ? '#ff6b6b' : '#4a9eff';
 
-        // Draw angle labels (only for non-90° angles)
-        for (let i = 0; i < angles.length; i++) {
-            const { point, angle } = angles[i];
-            // Skip angles close to 90° or 270°
-            if (Math.abs(angle - 90) < 2 || Math.abs(angle - 270) < 2) continue;
+                // Draw arrow line along the actual edge (no extension beyond endpoints)
+                ctx.strokeStyle = arrowColor;
+                ctx.lineWidth = 2;
+                ctx.setLineDash(isCut ? [6, 4] : []);
 
-            const p = toCanvas(point);
+                // Draw line along the edge
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-            // Find direction away from polygon center
-            const clippedCenter = edges.length > 0
-                ? { x: edges.reduce((s, e) => s + e.p1.x, 0) / edges.length,
-                    y: edges.reduce((s, e) => s + e.p1.y, 0) / edges.length }
-                : { x: plank.cx, y: plank.cy };
-            const centerCanvas = toCanvas(clippedCenter);
-            const dx = p.x - centerCanvas.x;
-            const dy = p.y - centerCanvas.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 1) continue;
+                // Draw arrowheads at both ends (pointing outward)
+                const headLen = 8;
+                drawArrowhead(ctx, p1.x, p1.y, ndx, ndy, headLen, arrowColor);
+                drawArrowhead(ctx, p2.x, p2.y, -ndx, -ndy, headLen, arrowColor);
 
-            const offsetDist = 28;
-            const labelX = p.x + (dx / dist) * offsetDist;
-            const labelY = p.y + (dy / dist) * offsetDist;
+                // Label position (midpoint with perpendicular offset)
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                let labelX = midX + nx;
+                let labelY = midY + ny;
 
-            // Angle label
-            const label = `${round(angle, 1)}°`;
-            const labelWidth = ctx.measureText(label).width + 8;
+                // Clamp label to canvas if needed
+                const label = `${edge.label}: ${round(edge.length, 1)} cm`;
+                const labelWidth = ctx.measureText(label).width + 12;
+                const labelHeight = 20;
 
-            ctx.fillStyle = 'rgba(255, 107, 107, 0.9)';
-            drawRoundedRect(ctx, labelX - labelWidth / 2, labelY - 10, labelWidth, 20, 4);
-            ctx.fill();
+                labelX = Math.max(labelWidth / 2 + 5, Math.min(size - labelWidth / 2 - 5, labelX));
+                labelY = Math.max(labelHeight / 2 + 5, Math.min(size - labelHeight / 2 - 5, labelY));
 
-            ctx.fillStyle = '#fff';
-            ctx.fillText(label, labelX, labelY);
+                // Label background (rounded rect)
+                ctx.fillStyle = bgColor;
+                drawRoundedRect(ctx, labelX - labelWidth / 2, labelY - labelHeight / 2, labelWidth, labelHeight, 4);
+                ctx.fill();
 
-            // Small circle at vertex
-            ctx.fillStyle = '#ff6b6b';
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
-            ctx.fill();
+                // Label text
+                ctx.fillStyle = '#fff';
+                ctx.fillText(label, labelX, labelY);
+            }
         }
     }
 
-    function updateDetailInfo(plank, edges, angles) {
+    // Helper to draw arrowhead
+    function drawArrowhead(ctx, x, y, dx, dy, len, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        // Arrow points in direction (-dx, -dy)
+        const angle = Math.atan2(-dy, -dx);
+        const spread = Math.PI / 6; // 30 degrees
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + len * Math.cos(angle - spread), y + len * Math.sin(angle - spread));
+        ctx.lineTo(x + len * Math.cos(angle + spread), y + len * Math.sin(angle + spread));
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // Helper to clamp point to canvas bounds
+    function clampToCanvas(p, size, margin) {
+        return {
+            x: Math.max(margin, Math.min(size - margin, p.x)),
+            y: Math.max(margin, Math.min(size - margin, p.y))
+        };
+    }
+
+    function updateDetailInfo(plank, pieces) {
         if (!detailInfo) return;
 
-        const nonRightAngles = angles.filter(a => Math.abs(a.angle - 90) >= 1 && Math.abs(a.angle - 270) >= 1);
+        // Aggregate all edges from all pieces
+        const allEdges = pieces.flatMap(p => p.edges);
 
-        let html = `
+        // Separate plank edges and cut edges
+        const plankEdges = allEdges.filter(e => e.type === 'plank');
+        const cutEdges = allEdges.filter(e => e.type === 'cut');
+
+        const html = `
             <div class="info-section">
                 <h3>Plank Info</h3>
                 <div class="info-row">
@@ -1345,23 +1417,18 @@ function init() {
                 </div>
             </div>
             <div class="info-section">
-                <h3>Edges (${edges.length})</h3>
+                <h3>Visible Edges</h3>
                 <ul class="edge-list">
-                    ${edges.map((e, i) => `<li>Edge ${i + 1}: <strong>${round(e.length, 1)} cm</strong></li>`).join('')}
+                    ${plankEdges.map(e => `<li><span class="edge-plank">${e.label}</span>: <strong>${round(e.length, 1)} cm</strong></li>`).join('')}
                 </ul>
+                ${cutEdges.length > 0 ? `
+                <h3 style="margin-top: 8px;">Cuts</h3>
+                <ul class="edge-list">
+                    ${cutEdges.map(e => `<li><span class="edge-cut">${e.label}</span>: <strong>${round(e.length, 1)} cm</strong></li>`).join('')}
+                </ul>
+                ` : ''}
             </div>
         `;
-
-        if (nonRightAngles.length > 0) {
-            html += `
-                <div class="info-section" style="grid-column: span 2;">
-                    <h3>Non-90° Angles</h3>
-                    <ul class="edge-list">
-                        ${nonRightAngles.map((a, i) => `<li class="angle-warning">Corner: <strong>${a.angle}°</strong></li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
 
         detailInfo.innerHTML = html;
     }
