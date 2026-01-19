@@ -7,6 +7,17 @@ import { fitBoundsToView } from '../geometry/transforms.js';
 import { polygonBounds } from '../geometry/polygon.js';
 
 /**
+ * Detect if device is mobile/touch
+ */
+export function isMobileDevice() {
+    return (
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0 ||
+        window.matchMedia('(max-width: 768px)').matches
+    );
+}
+
+/**
  * Initialize all control panel inputs
  */
 export function initControls(canvas) {
@@ -246,6 +257,120 @@ export function initPanZoom(canvas) {
     // Prevent context menu on middle click
     canvas.addEventListener('contextmenu', (e) => {
         e.preventDefault();
+    });
+
+    // Touch support for mobile
+    let touchStartDistance = 0;
+    let touchStartScale = 1;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+    let isTouchPanning = false;
+
+    let touchStartTime = 0;
+    let touchMoved = false;
+
+    canvas.addEventListener('touchstart', (e) => {
+        touchStartTime = Date.now();
+        touchMoved = false;
+
+        if (e.touches.length === 1) {
+            // Single touch - prepare for pan
+            isTouchPanning = true;
+            lastTouchX = e.touches[0].clientX;
+            lastTouchY = e.touches[0].clientY;
+        } else if (e.touches.length === 2) {
+            // Two touches - prepare for pinch zoom
+            isTouchPanning = false;
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            touchStartDistance = Math.sqrt(dx * dx + dy * dy);
+            touchStartScale = state.get().view.scale;
+            e.preventDefault(); // Prevent zoom only for pinch
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        const currentState = state.get();
+
+        if (e.touches.length === 1 && isTouchPanning) {
+            // Single touch pan
+            const dx = e.touches[0].clientX - lastTouchX;
+            const dy = e.touches[0].clientY - lastTouchY;
+
+            // Track if user moved significantly (for tap detection)
+            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                touchMoved = true;
+            }
+
+            state.batch({
+                'view.offsetX': currentState.view.offsetX + dx,
+                'view.offsetY': currentState.view.offsetY + dy
+            });
+
+            lastTouchX = e.touches[0].clientX;
+            lastTouchY = e.touches[0].clientY;
+            e.preventDefault(); // Prevent scroll during pan
+        } else if (e.touches.length === 2) {
+            // Pinch zoom
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (touchStartDistance > 0) {
+                const zoomFactor = distance / touchStartDistance;
+                const newScale = Math.max(0.1, Math.min(10, touchStartScale * zoomFactor));
+
+                // Zoom centered on pinch midpoint
+                const rect = canvas.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                const pivotX = midX - rect.left - centerX;
+                const pivotY = midY - rect.top - centerY;
+
+                const { offsetX, offsetY, scale } = currentState.view;
+                const worldX = (pivotX - offsetX) / scale;
+                const worldY = (pivotY - offsetY) / scale;
+
+                const newOffsetX = pivotX - worldX * newScale;
+                const newOffsetY = pivotY - worldY * newScale;
+
+                state.batch({
+                    'view.scale': newScale,
+                    'view.offsetX': newOffsetX,
+                    'view.offsetY': newOffsetY
+                });
+            }
+        }
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+        const touchDuration = Date.now() - touchStartTime;
+
+        if (e.touches.length === 0) {
+            // Check if this was a tap (short touch, no significant movement)
+            if (!touchMoved && touchDuration < 300 && e.changedTouches.length === 1) {
+                // Simulate click for plank selection
+                const touch = e.changedTouches[0];
+                const clickEvent = new MouseEvent('click', {
+                    bubbles: true,
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                canvas.dispatchEvent(clickEvent);
+            }
+
+            isTouchPanning = false;
+            touchStartDistance = 0;
+        } else if (e.touches.length === 1) {
+            // Switched from pinch to single touch
+            isTouchPanning = true;
+            lastTouchX = e.touches[0].clientX;
+            lastTouchY = e.touches[0].clientY;
+            touchMoved = false;
+        }
     });
 }
 

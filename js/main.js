@@ -15,7 +15,7 @@ import { polygonArea, polygonBounds, pointInPolygon } from './geometry/polygon.j
 import { clipPolygon } from './geometry/clipping.js';
 import { fitBoundsToView } from './geometry/transforms.js';
 import { initRoomEditor, updateWallsList, getWallLabelAtPosition } from './ui/room-editor.js';
-import { initControls, initPanZoom, initFloorDrag } from './ui/controls.js';
+import { initControls, initPanZoom, initFloorDrag, isMobileDevice } from './ui/controls.js';
 import { updateStatsDisplay, updateOverlay } from './ui/stats.js';
 import { initRoomManager } from './ui/room-manager.js';
 import { throttle, round } from './utils.js';
@@ -43,6 +43,18 @@ function init() {
     initPanZoom(canvas);
     initFloorDrag(canvas, getTransform);
     initRoomManager(canvas);
+
+    // Mobile-specific setup
+    if (isMobileDevice()) {
+        document.body.classList.add('is-mobile');
+        // Auto-lock on mobile if room exists
+        const currentState = state.get();
+        if (currentState.room.isComplete) {
+            state.set('ui.isLocked', true);
+        }
+        // Show mobile hint
+        showMobileHint();
+    }
 
     // Plank click handler - uses capture phase to run before room-editor click handler
     canvas.addEventListener('click', (e) => {
@@ -1488,6 +1500,42 @@ function init() {
     console.log('- Scroll to zoom');
     console.log('- Shift+drag or middle-mouse to pan');
     console.log('- Ctrl+drag or right-drag to move floor pattern');
+}
+
+/**
+ * Show mobile hint tooltip
+ */
+function showMobileHint() {
+    // Create mobile hint element
+    const hint = document.createElement('div');
+    hint.className = 'mobile-hint';
+    hint.innerHTML = `
+        <div class="mobile-hint-content">
+            <strong>Mobile View</strong>
+            <p>Drag to pan, pinch to zoom</p>
+            <p>Tap a plank to see details</p>
+            <button class="btn btn-sm" id="dismiss-mobile-hint">Got it</button>
+        </div>
+    `;
+    document.body.appendChild(hint);
+
+    // Show after a short delay
+    setTimeout(() => hint.classList.add('visible'), 500);
+
+    // Dismiss on button click or tap outside
+    const dismissBtn = hint.querySelector('#dismiss-mobile-hint');
+    dismissBtn.addEventListener('click', () => {
+        hint.classList.remove('visible');
+        setTimeout(() => hint.remove(), 300);
+    });
+
+    // Auto-dismiss after 8 seconds
+    setTimeout(() => {
+        if (hint.parentNode) {
+            hint.classList.remove('visible');
+            setTimeout(() => hint.remove(), 300);
+        }
+    }, 8000);
 }
 
 // Start app when DOM is ready
