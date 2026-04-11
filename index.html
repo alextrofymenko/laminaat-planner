@@ -46,6 +46,26 @@
             </div>
 
             <p class="hint" id="room-hint">Click on canvas to place vertices. Click near the first point to close the room.</p>
+
+            <!-- Step-by-step measurement wizard (shown only while active) -->
+            <section class="step-panel" id="step-panel" style="display: none;">
+                <div class="step-panel-header">
+                    <h2>Step-by-step</h2>
+                    <button class="step-cancel" id="step-cancel" title="Cancel">&times;</button>
+                </div>
+                <p class="step-hint">Walk clockwise around the room. Enter each wall length, then the interior angle of the corner on your <strong>right</strong>.</p>
+
+                <div class="step-walls-list" id="step-walls-list"></div>
+
+                <div class="step-current" id="step-current"></div>
+
+                <div class="step-residual" id="step-residual"></div>
+
+                <div class="step-actions">
+                    <button class="btn btn-primary btn-full" id="step-done" disabled>Done</button>
+                </div>
+            </section>
+
             <div class="walls-list" id="walls-list"></div>
 
             <section class="panel">
@@ -214,6 +234,47 @@
                 <div class="modal-canvas-hint">Scroll to zoom, drag to pan</div>
                 <canvas id="plank-detail-canvas"></canvas>
                 <div class="plank-detail-info" id="plank-detail-info"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Room Mode Picker -->
+    <div class="modal-overlay modal-sm" id="new-room-mode-modal" style="display: none;">
+        <div class="modal modal-dialog">
+            <div class="modal-header">
+                <h2>New Room</h2>
+                <button class="modal-close" id="new-room-mode-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">How would you like to draw the room?</p>
+                <div class="mode-cards">
+                    <button class="mode-card" id="mode-card-click">
+                        <div class="mode-card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="3 21 12 3 21 21 3 21"></polygon>
+                                <circle cx="3" cy="21" r="1.5" fill="currentColor"></circle>
+                                <circle cx="12" cy="3" r="1.5" fill="currentColor"></circle>
+                                <circle cx="21" cy="21" r="1.5" fill="currentColor"></circle>
+                            </svg>
+                        </div>
+                        <div class="mode-card-title">Point and click</div>
+                        <div class="mode-card-desc">Click on the canvas to place each corner, then close the shape.</div>
+                    </button>
+                    <button class="mode-card" id="mode-card-steps">
+                        <div class="mode-card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="4" y1="20" x2="20" y2="20"></line>
+                                <line x1="4" y1="20" x2="4" y2="8"></line>
+                                <line x1="4" y1="8" x2="14" y2="8"></line>
+                                <path d="M14 8 L14 4"></path>
+                                <text x="10" y="17" font-size="5" fill="currentColor" stroke="none">L</text>
+                                <text x="6" y="15" font-size="4" fill="currentColor" stroke="none">θ</text>
+                            </svg>
+                        </div>
+                        <div class="mode-card-title">Step-by-step measurements</div>
+                        <div class="mode-card-desc">Enter each wall length and interior angle from actual measurements.</div>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

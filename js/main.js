@@ -18,6 +18,7 @@ import { initRoomEditor, updateWallsList, getWallLabelAtPosition } from './ui/ro
 import { initControls, initPanZoom, initFloorDrag, isMobileDevice } from './ui/controls.js';
 import { updateStatsDisplay, updateOverlay } from './ui/stats.js';
 import { initRoomManager } from './ui/room-manager.js';
+import { initStepByStep } from './ui/step-by-step.js';
 import { throttle, round } from './utils.js';
 
 // Initialize application
@@ -42,7 +43,8 @@ function init() {
     initControls(canvas);
     initPanZoom(canvas);
     initFloorDrag(canvas, getTransform);
-    initRoomManager(canvas);
+    const stepByStep = initStepByStep(canvas);
+    initRoomManager(canvas, { stepByStep });
 
     // Mobile-specific setup
     if (isMobileDevice()) {

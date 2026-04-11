@@ -19,7 +19,8 @@ function checkForSharedRoom() {
     return null;
 }
 
-export function initRoomManager(canvas) {
+export function initRoomManager(canvas, deps = {}) {
+    const stepByStep = deps.stepByStep || null;
     // Check for shared room in URL before initializing
     const sharedData = checkForSharedRoom();
     if (sharedData) {
@@ -47,6 +48,12 @@ export function initRoomManager(canvas) {
     const btnShareRoom = document.getElementById('btn-share-room');
     const btnLockRoom = document.getElementById('btn-lock-room');
     const btnHelp = document.getElementById('btn-help');
+
+    // New room mode picker modal
+    const modeModal = document.getElementById('new-room-mode-modal');
+    const modeModalClose = document.getElementById('new-room-mode-close');
+    const modeCardClick = document.getElementById('mode-card-click');
+    const modeCardSteps = document.getElementById('mode-card-steps');
 
     // Help modal
     const helpModal = document.getElementById('help-modal');
@@ -187,16 +194,42 @@ export function initRoomManager(canvas) {
             pendingRoomSwitch = 'new';
             unsavedDialog.style.display = 'flex';
         } else {
-            createNewRoom();
+            showModePicker();
         }
     }
 
-    function createNewRoom() {
+    function showModePicker() {
+        if (modeModal) modeModal.style.display = 'flex';
+    }
+
+    function hideModePicker() {
+        if (modeModal) modeModal.style.display = 'none';
+    }
+
+    function startPointAndClickRoom() {
+        if (stepByStep) stepByStep.cancel();
         roomManager.createNewRoom();
         state.set('view.scale', 2);
         const hint = document.getElementById('room-hint');
         if (hint) hint.classList.add('visible');
         canvas.style.cursor = 'crosshair';
+    }
+
+    function startStepByStepRoom() {
+        if (stepByStep) stepByStep.cancel();
+        roomManager.createNewRoom();
+        state.set('view.scale', 2);
+        if (stepByStep) {
+            stepByStep.start();
+        } else {
+            // Fallback if wizard wasn't provided — behave like point-and-click
+            startPointAndClickRoom();
+        }
+    }
+
+    // Back-compat entry point used by the unsaved-changes flow: always shows the picker.
+    function createNewRoom() {
+        showModePicker();
     }
 
     function showSaveDialog() {
@@ -331,6 +364,28 @@ export function initRoomManager(canvas) {
     // Initial lock state
     updateLockState();
 
+    // Mode picker handlers
+    if (modeCardClick) {
+        modeCardClick.addEventListener('click', () => {
+            hideModePicker();
+            startPointAndClickRoom();
+        });
+    }
+    if (modeCardSteps) {
+        modeCardSteps.addEventListener('click', () => {
+            hideModePicker();
+            startStepByStepRoom();
+        });
+    }
+    if (modeModalClose) {
+        modeModalClose.addEventListener('click', hideModePicker);
+    }
+    if (modeModal) {
+        modeModal.addEventListener('click', (e) => {
+            if (e.target === modeModal) hideModePicker();
+        });
+    }
+
     // Help button
     btnHelp.addEventListener('click', () => {
         helpModal.style.display = 'flex';
@@ -445,6 +500,7 @@ export function initRoomManager(canvas) {
             if (deleteDialog.style.display !== 'none') hideDeleteDialog();
             if (unsavedDialog.style.display !== 'none') hideUnsavedDialog();
             if (helpModal.style.display !== 'none') helpModal.style.display = 'none';
+            if (modeModal && modeModal.style.display !== 'none') hideModePicker();
         }
     });
 

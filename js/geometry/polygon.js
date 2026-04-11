@@ -2,7 +2,7 @@
  * Polygon geometry utilities
  */
 
-import { distance } from '../utils.js';
+import { distance, toRadians } from '../utils.js';
 
 // Calculate polygon area using shoelace formula
 export function polygonArea(vertices) {
@@ -227,6 +227,102 @@ export function polygonIntersectsRect(polygon, rectCorners) {
     }
 
     return false;
+}
+
+/**
+ * Build an open polyline from step-by-step wall lengths and interior angles.
+ *
+ * Convention: traverser walks CLOCKWISE around the room. Starting at the origin
+ * heading along +X (screen-right). After each wall, the traverser measures the
+ * INTERIOR angle at the corner on their right (the angle between the wall they
+ * just walked and the next wall, measured inside the room). A right-angle corner
+ * is 90 degrees; a perfectly straight continuation is 180 degrees.
+ *
+ * In screen coordinates (Y pointing down), walking clockwise means each corner
+ * is a right turn, and the heading increases by (180 - interior) degrees.
+ *
+ * @param {number[]} lengths - Wall lengths in cm (N entries).
+ * @param {number[]} interiorAngles - Interior angles in degrees between consecutive
+ *   walls (N-1 entries). interiorAngles[i] is the corner between lengths[i] and lengths[i+1].
+ * @returns {{x:number,y:number}[]} Vertices from V_0 (start) through V_N (end of last wall),
+ *   so lengths.length + 1 points. Caller is expected to close / reconcile.
+ */
+export function buildPolylineFromSteps(lengths, interiorAngles) {
+    const vertices = [{ x: 0, y: 0 }];
+    let headingRad = 0;
+
+    for (let i = 0; i < lengths.length; i++) {
+        const L = lengths[i];
+        const prev = vertices[vertices.length - 1];
+        vertices.push({
+            x: prev.x + Math.cos(headingRad) * L,
+            y: prev.y + Math.sin(headingRad) * L
+        });
+
+        if (i < lengths.length - 1) {
+            const interior = interiorAngles[i];
+            // Clockwise traversal = right turn. In screen coords (y-down), right turn
+            // increases heading by (180 - interior).
+            headingRad += toRadians(180 - interior);
+        }
+    }
+
+    return vertices;
+}
+
+/**
+ * Residual closure metrics for an open polyline that "should" close.
+ *
+ * @param {{x:number,y:number}[]} polyline - Output of buildPolylineFromSteps (N+1 points).
+ * @returns {{distanceCm:number, closingTurnDeg:number}|null}
+ *   distanceCm: gap from last vertex back to first, in cm.
+ *   closingTurnDeg: extra turn in degrees needed so the traverser's heading at the
+ *     final vertex aligns with the direction back to the start (useful as a sanity check).
+ *   Null if the polyline is too short (<3 walls).
+ */
+export function polylineClosureResidual(polyline) {
+    if (polyline.length < 3) return null;
+
+    const first = polyline[0];
+    const last = polyline[polyline.length - 1];
+    const dx = first.x - last.x;
+    const dy = first.y - last.y;
+    const distanceCm = Math.hypot(dx, dy);
+
+    return { distanceCm, closingTurnDeg: 0 }; // closingTurnDeg retained for future use
+}
+
+/**
+ * Reconcile an open polyline into a closed polygon by spreading the closure
+ * residual evenly across every vertex (elastic-band closure).
+ *
+ * Each intermediate vertex V_k (k in [0..N]) is shifted by -(k/N) * r, where
+ * r = V_N - V_0 is the residual. This guarantees V_N lands exactly on V_0 and
+ * the error is distributed proportionally along the path. Wall lengths and
+ * angles only change by a fraction of the original residual, so small
+ * measurement errors become imperceptible.
+ *
+ * @param {{x:number,y:number}[]} polyline - Open polyline (N+1 points).
+ * @returns {{x:number,y:number}[]} Closed polygon vertices (N points).
+ */
+export function closeAndDistribute(polyline) {
+    const N = polyline.length - 1;
+    if (N < 3) return polyline.slice(0, Math.max(0, N));
+
+    const first = polyline[0];
+    const last = polyline[N];
+    const rx = last.x - first.x;
+    const ry = last.y - first.y;
+
+    const result = [];
+    for (let k = 0; k < N; k++) {
+        const t = k / N;
+        result.push({
+            x: polyline[k].x - rx * t,
+            y: polyline[k].y - ry * t
+        });
+    }
+    return result;
 }
 
 // Get distance from point to line segment
